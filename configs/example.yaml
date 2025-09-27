@@ -1,0 +1,44 @@
+# Application settings
+app:
+  env: development
+  name: corpord-api
+  debug: true
+  timezone: UTC
+
+database:
+  postgres:
+    host: localhost
+    port: 5432
+    dbname: name
+    sslmode: disable
+    max_conns: 10
+
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
+
+logger:
+  level: debug
+  encoding: console
+  output_paths: stdout
+  error_output: stderr
+  enable_caller: true
+  enable_stack: true
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: true
+  log_to_file: false
+  log_directory: ./logs
+
+http:
+  port: 8080
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+
+jwt:
+  access_token_ttl: 15m
+  refresh_token_ttl: 720h
+  signing_algorithm: HS256
