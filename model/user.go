@@ -49,6 +49,7 @@ type UserResponse struct {
 	ID        int       `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -65,6 +66,7 @@ type UserDB struct {
 	Email        string    `db:"email"`
 	PasswordHash string    `db:"password_hash"`
 	Name         string    `db:"name"`
+	Role         string    `db:"role_name"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 }
@@ -75,6 +77,7 @@ func (u *UserDB) ToResponse() *UserResponse {
 		ID:        u.ID,
 		Email:     u.Email,
 		Name:      u.Name,
+		Role:      u.Role,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}

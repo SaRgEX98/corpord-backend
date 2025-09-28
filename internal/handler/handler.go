@@ -1,25 +1,36 @@
 package handler
 
 import (
+	"corpord-api/internal/config"
 	"corpord-api/internal/handler/middleware"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
+	"corpord-api/internal/token"
 	"github.com/gin-gonic/gin"
+
+	"corpord-api/model"
 )
 
 type handler struct {
+	user   *UserHandler
+	auth   *AuthHandler
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
-	uh     *UserHandler
+	cfg    *config.Config
+	t      token.Manager
 }
 
-func New(logger *logger.Logger, s *service.Service) Handler {
+// New creates a new handler instance with all dependencies
+func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager) Handler {
 	return &handler{
+		user:   NewUser(logger, s.User),
+		auth:   NewAuthHandler(s.Auth, logger),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
-		uh:     NewUser(logger, s.User),
+		cfg:    cfg,
+		t:      t,
 	}
 }
 
@@ -27,29 +38,44 @@ func New(logger *logger.Logger, s *service.Service) Handler {
 func (h *handler) InitRoutes() *gin.Engine {
 	h.logger.Info("Initializing routes")
 
-	// Add middleware
+	// Add global middleware
 	h.r.Use(middleware.RequestLogger(h.logger))
 
 	// API v1 routes
 	v1 := h.r.Group("api/v1")
 	{
-		// User routes (public)
+		// Public routes - no authentication required
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/sign-up", h.uh.Create)    // Создание пользователя
-			auth.POST("/sign-in", h.uh.Authorize) // Аутентификация
+			auth.POST("/register", h.auth.Register) // New user registration
+			auth.POST("/login", h.auth.Login)       // User login
 		}
 
-		// Protected routes (require authentication)
-		authorized := v1.Group("/")
+		// Protected routes - require valid JWT token
+		authorized := v1.Group("")
+		authorized.Use(middleware.AuthMiddleware(h.logger, h.t))
 		{
-			// User management
-			userRoutes := authorized.Group("/users", middleware.CheckAuthorization(h.logger))
+			// Example of admin-only route
+			admin := authorized.Group("/admin")
+			admin.Use(middleware.RoleMiddleware(model.RoleAdmin, h.logger))
 			{
-				userRoutes.GET("/", h.uh.All)          // Получение списка пользователей
-				userRoutes.GET("/:id", h.uh.Get)       // Получение пользователя по ID
-				userRoutes.PUT("/:id", h.uh.Update)    // Обновление пользователя
-				userRoutes.DELETE("/:id", h.uh.Delete) // Удаление пользователя
+				// Add admin routes here
+				// admin.GET("/users", h.user.GetAllUsers)
+				users := admin.Group("/users")
+				{
+					users.PUT("/:id", h.user.Update) // Update user
+
+				}
+
+			}
+
+			// User management
+			users := authorized.Group("/users")
+			{
+				users.GET("", h.user.All)           // Get all users
+				users.GET("/:id", h.user.Get)       // Get user by ID
+				users.POST("", h.user.Create)       // Create user (kept for backward compatibility)
+				users.DELETE("/:id", h.user.Delete) // Delete user
 			}
 		}
 	}

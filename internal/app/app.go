@@ -9,8 +9,10 @@ import (
 	"corpord-api/internal/repository"
 	"corpord-api/internal/server"
 	"corpord-api/internal/service"
+	"corpord-api/internal/token"
 	"errors"
 	"log"
+	"syscall"
 	"time"
 )
 
@@ -23,6 +25,7 @@ type App struct {
 	srv    server.Server
 	ctx    context.Context
 	db     *database.Database
+	t      token.Manager
 }
 
 func New() *App {
@@ -39,7 +42,7 @@ func New() *App {
 		log.Fatalf("couldn't initialize logger: %v", err)
 	}
 	defer func() {
-		if err := a.logger.Sync(); err != nil {
+		if err := a.logger.Sync(); err != nil && !errors.Is(err, syscall.ENOTSUP) && !errors.Is(err, syscall.EINVAL) {
 			log.Printf("failed to sync logger: %v", err)
 		}
 	}()
@@ -60,11 +63,14 @@ func New() *App {
 	a.logger.Info("initializing repository layer")
 	a.r = repository.New(a.logger, a.db.Postgres.DB())
 
+	a.logger.Info("initializing token manager")
+	a.t = token.NewManager(a.cfg.JWTConfig.Secret, a.cfg.JWTConfig.AccessTokenTTL)
+
 	a.logger.Info("initializing service layer")
-	a.s = service.New(a.logger, a.r)
+	a.s = service.New(a.logger, a.r, a.t)
 
 	a.logger.Info("initializing handler layer")
-	a.h = handler.New(a.logger, a.s)
+	a.h = handler.New(a.logger, a.s, a.cfg, a.t)
 
 	a.logger.Info("initializing server")
 	a.srv = server.New(a.h.InitRoutes())

@@ -116,35 +116,3 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
-
-type AuthorizeRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
-}
-
-// Authorize обрабатывает аутентификацию пользователя
-func (h *UserHandler) Authorize(c *gin.Context) {
-	start := time.Now()
-	h.logger.Info("handling user authorization request")
-
-	var req model.UserLogin
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
-		return
-	}
-
-	token, err := h.s.Login(c.Request.Context(), req)
-	if err != nil {
-		h.logger.Warnf("authorization failed for %s: %v", req.Email, err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-		return
-	}
-
-	h.logger.Infof("user %s authorized successfully in %v", req.Email, time.Since(start))
-
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-		"email": req.Email,
-	})
-}

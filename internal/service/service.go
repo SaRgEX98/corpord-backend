@@ -3,18 +3,24 @@ package service
 import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository"
+	"corpord-api/internal/token"
 )
 
 // Service aggregates all service interfaces
 type Service struct {
 	logger *logger.Logger
-	User
+	token  token.Manager
+	User   User
+	Auth   Auth
 }
 
 // New creates a new service instance with all dependencies
-func New(logger *logger.Logger, repo *repository.Repository) *Service {
+func New(logger *logger.Logger, repo *repository.Repository, token token.Manager) *Service {
+
 	return &Service{
 		logger: logger,
-		User:   NewUser(logger, repo.PgRepository.User, "secret"),
+		token:  token,
+		User:   NewUser(logger, repo.PgRepository.User),
+		Auth:   NewAuth(logger, token, repo.PgRepository.Auth),
 	}
 }
