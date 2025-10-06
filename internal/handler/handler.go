@@ -6,6 +6,7 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/internal/token"
+
 	"github.com/gin-gonic/gin"
 
 	"corpord-api/model"
@@ -14,6 +15,7 @@ import (
 type handler struct {
 	user   *UserHandler
 	auth   *AuthHandler
+	bus    *BusHandler
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
@@ -26,6 +28,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 	return &handler{
 		user:   NewUser(logger, s.User),
 		auth:   NewAuthHandler(s.Auth, logger),
+		bus:    NewBus(logger, s.Bus),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
@@ -79,6 +82,8 @@ func (h *handler) InitRoutes() *gin.Engine {
 			}
 		}
 	}
+
+	h.bus.InitRoutes(v1)
 
 	return h.r
 }

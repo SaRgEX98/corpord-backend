@@ -20,8 +20,8 @@ var (
 	// ErrNotFound возвращается, когда запрашиваемый ресурс не найден.
 	ErrNotFound = errors.New("resource not found")
 
-	// ErrEmailAlreadyExists возвращается при попытке создать пользователя с уже существующим email.
-	ErrEmailAlreadyExists = errors.New("user with this email already exists")
+	// ErrAlreadyExists возвращается при попытке создать сущность с уже существующими данными.
+	ErrAlreadyExists = errors.New("already exists")
 
 	// ErrForeignKeyViolation возвращается при нарушении ограничения внешнего ключа.
 	ErrForeignKeyViolation = errors.New("foreign key violation")
