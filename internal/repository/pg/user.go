@@ -3,14 +3,15 @@ package pg
 import (
 	"context"
 	"corpord-api/internal/logger"
+	"corpord-api/pkg/dbx"
 	"database/sql"
 	"errors"
 	"time"
 
 	"corpord-api/model"
+
 	sq "github.com/Masterminds/squirrel"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
 )
 
 type UserRepository interface {
@@ -24,13 +25,13 @@ type UserRepository interface {
 
 type userRepository struct {
 	logger *logger.Logger
-	db     *sqlx.DB
+	qb     *dbx.QueryBuilder
 }
 
-func NewUserRepository(logger *logger.Logger, db *sqlx.DB) UserRepository {
+func NewUserRepository(logger *logger.Logger, qb *dbx.QueryBuilder) UserRepository {
 	return &userRepository{
 		logger: logger,
-		db:     db,
+		qb:     qb,
 	}
 }
 
@@ -41,18 +42,17 @@ func (r *userRepository) Create(ctx context.Context, user *model.UserCreate) (*m
 
 	var userDB model.UserDB
 
-	query, args, err := sq.Insert(TableUsers).
+	query, args, err := r.qb.Sq.Insert(TableUsers).
 		Columns("email", "password_hash", "name", "created_at", "updated_at").
 		Values(user.Email, user.Password /* hashedPassword */, user.Name, now, now).
 		Suffix("RETURNING id, email, name, created_at, updated_at").
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
 		r.logger.Errorf("failed to build create user query: %v", err)
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &userDB, query, args...)
+	err = r.qb.DB.GetContext(ctx, &userDB, query, args...)
 	if err != nil {
 		r.logger.Errorf("failed to create user with email %s: %v", user.Email, err)
 		return nil, err
@@ -67,7 +67,7 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 	r.logger.Info("fetching all users")
 
 	// Build the base query
-	query, args, err := sq.Select(
+	query, args, err := r.qb.Sq.Select(
 		"id",
 		"name",
 		"email",
@@ -76,7 +76,6 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 	).
 		From(TableUsers).
 		OrderBy("id ASC").
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 
 	if err != nil {
@@ -86,7 +85,7 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 
 	// Execute the query
 	var users []*model.UserDB
-	err = r.db.SelectContext(ctx, &users, query, args...)
+	err = r.qb.DB.SelectContext(ctx, &users, query, args...)
 	if err != nil {
 		r.logger.Errorf("failed to fetch users: %v", err)
 		return nil, err
@@ -105,10 +104,9 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 func (r *userRepository) GetByID(ctx context.Context, id int) (*model.UserResponse, error) {
 	r.logger.Infof("fetching user with id: %d", id)
 
-	query, args, err := sq.Select("id", "name", "email", "created_at", "updated_at").
+	query, args, err := r.qb.Sq.Select("id", "name", "email", "created_at", "updated_at").
 		From(TableUsers).
 		Where(sq.Eq{"id": id}).
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
 		r.logger.Errorf("failed to build query for user id %d: %v", id, err)
@@ -116,7 +114,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*model.UserRespon
 	}
 
 	var user model.UserDB
-	err = r.db.GetContext(ctx, &user, query, args...)
+	err = r.qb.DB.GetContext(ctx, &user, query, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			r.logger.Infof("user with id %d not found", id)
@@ -137,10 +135,9 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*model.UserRespon
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.UserDB, error) {
 	r.logger.Infof("fetching user by email: %s", email)
 
-	query, args, err := sq.Select("id", "email", "password_hash", "name", "created_at", "updated_at").
+	query, args, err := r.qb.Sq.Select("id", "email", "password_hash", "name", "created_at", "updated_at").
 		From(TableUsers).
 		Where(sq.Eq{"email": email}).
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 
 	if err != nil {
@@ -149,7 +146,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 	}
 
 	var user model.UserDB
-	err = r.db.GetContext(ctx, &user, query, args...)
+	err = r.qb.DB.GetContext(ctx, &user, query, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			r.logger.Infof("user with email %s not found", email)
@@ -168,10 +165,9 @@ func (r *userRepository) Update(ctx context.Context, id int, user *model.UserUpd
 
 	now := time.Now()
 
-	updateQuery := sq.Update(TableUsers).
+	updateQuery := r.qb.Sq.Update(TableUsers).
 		Set("updated_at", now).
-		Where(sq.Eq{"id": id}).
-		PlaceholderFormat(sq.Dollar)
+		Where(sq.Eq{"id": id})
 
 	if user.Name != nil {
 		updateQuery = updateQuery.Set("name", *user.Name)
@@ -194,7 +190,7 @@ func (r *userRepository) Update(ctx context.Context, id int, user *model.UserUpd
 		return nil, err
 	}
 
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.qb.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		r.logger.Errorf("failed to update user %d: %v", id, err)
 		return nil, err
@@ -224,7 +220,7 @@ func (r *userRepository) Delete(ctx context.Context, id int) error {
 		return err
 	}
 
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.qb.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		r.logger.Errorf("failed to delete user %d: %v", id, err)
 		return err
