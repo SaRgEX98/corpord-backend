@@ -3,7 +3,7 @@ package repository
 import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository/pg"
-	"github.com/jmoiron/sqlx"
+	"corpord-api/pkg/dbx"
 )
 
 type Repository struct {
@@ -11,9 +11,9 @@ type Repository struct {
 	PgRepository *pg.PostgresRepository
 }
 
-func New(logger *logger.Logger, db *sqlx.DB) *Repository {
+func New(logger *logger.Logger, qb *dbx.QueryBuilder) *Repository {
 	return &Repository{
 		logger:       logger,
-		PgRepository: pg.New(logger, db),
+		PgRepository: pg.New(logger, qb),
 	}
 }

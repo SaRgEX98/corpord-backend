@@ -2,7 +2,7 @@ package pg
 
 import (
 	"corpord-api/internal/logger"
-	"github.com/jmoiron/sqlx"
+	"corpord-api/pkg/dbx"
 )
 
 type PostgresRepository struct {
@@ -11,10 +11,10 @@ type PostgresRepository struct {
 	Auth   AuthRepository
 }
 
-func New(logger *logger.Logger, db *sqlx.DB) *PostgresRepository {
+func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
 	return &PostgresRepository{
 		logger: logger,
-		User:   NewUserRepository(logger, db),
-		Auth:   NewAuthRepository(logger, db),
+		User:   NewUserRepository(logger, qb),
+		Auth:   NewAuthRepository(logger, qb),
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"corpord-api/internal/server"
 	"corpord-api/internal/service"
 	"corpord-api/internal/token"
+	"corpord-api/pkg/dbx"
 	"errors"
 	"log"
 	"syscall"
@@ -26,6 +27,7 @@ type App struct {
 	ctx    context.Context
 	db     *database.Database
 	t      token.Manager
+	qb     *dbx.QueryBuilder
 }
 
 func New() *App {
@@ -60,8 +62,10 @@ func New() *App {
 		}
 	}
 
+	a.qb = dbx.NewQueryBuilder(a.db.Postgres.DB())
+
 	a.logger.Info("initializing repository layer")
-	a.r = repository.New(a.logger, a.db.Postgres.DB())
+	a.r = repository.New(a.logger, a.qb)
 
 	a.logger.Info("initializing token manager")
 	a.t = token.NewManager(a.cfg.JWTConfig.Secret, a.cfg.JWTConfig.AccessTokenTTL)
