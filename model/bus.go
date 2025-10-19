@@ -6,17 +6,27 @@ import (
 )
 
 type Bus struct {
-	ID           int       `json:"id" db:"id"`
-	LicensePlate string    `json:"license_plate" db:"license_plate"`
-	Brand        string    `json:"brand" db:"brand"`
-	Capacity     int       `json:"capacity" db:"capacity"`
-	CategoryID   int       `json:"category_id" db:"category_id"`
-	StatusID     int       `json:"status_id" db:"status_id"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID           int        `json:"id" db:"id"`
+	LicensePlate string     `json:"license_plate" db:"license_plate"`
+	Brand        string     `json:"brand" db:"brand"`
+	Capacity     int        `json:"capacity" db:"capacity"`
+	CategoryID   int        `json:"category_id" db:"category_id"`
+	StatusID     int        `json:"status_id" db:"status_id"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at" db:"deleted_at"`
 
 	Category *BusCategory `json:"category" db:"category"`
 	Status   *BusStatus   `json:"status" db:"status"`
+}
+
+type ViewBus struct {
+	ID           int    `json:"id" binding:"required" db:"id"`
+	LicensePlate string `json:"license_plate" binding:"required" db:"license_plate"`
+	Brand        string `json:"brand" binding:"required" db:"brand"`
+	Capacity     int    `json:"capacity" binding:"required" db:"capacity"`
+	Category     string `json:"category" db:"category_name"`
+	Status       string `json:"status" db:"status_name"`
 }
 
 type BusCreate struct {

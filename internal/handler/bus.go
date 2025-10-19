@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"corpord-api/internal/handler/middleware"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
@@ -26,7 +25,7 @@ func NewBus(logger *logger.Logger, bus service.Bus) *BusHandler {
 func (h *BusHandler) InitRoutes(v1 *gin.RouterGroup) {
 	v1.GET("/", h.GetAllBuses)
 	v1.GET("/:id", h.GetBus)
-	admin := v1.Group("/admin/bus", middleware.RoleMiddleware(model.RoleAdmin, h.logger))
+	admin := v1.Group("/admin/bus")
 	{
 		admin.POST("/", h.CreateBus)
 		admin.PUT("/:id", h.UpdateBus)

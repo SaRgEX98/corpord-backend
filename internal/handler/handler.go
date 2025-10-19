@@ -53,7 +53,11 @@ func (h *handler) InitRoutes() *gin.Engine {
 			auth.POST("/register", h.auth.Register) // New user registration
 			auth.POST("/login", h.auth.Login)       // User login
 		}
-
+		bus := v1.Group("/bus")
+		{
+			bus.GET("/", h.bus.GetAllBuses)
+			bus.GET("/:id", h.bus.GetBus)
+		}
 		// Protected routes - require valid JWT token
 		authorized := v1.Group("")
 		authorized.Use(middleware.AuthMiddleware(h.logger, h.t))
@@ -69,7 +73,12 @@ func (h *handler) InitRoutes() *gin.Engine {
 					users.PUT("/:id", h.user.Update) // Update user
 
 				}
-
+				bus := admin.Group("/bus")
+				{
+					bus.POST("/", h.bus.CreateBus)
+					bus.PUT("/:id", h.bus.UpdateBus)
+					bus.DELETE("/:id", h.bus.DeleteBus)
+				}
 			}
 
 			// User management
@@ -83,7 +92,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		}
 	}
 
-	h.bus.InitRoutes(v1)
+	//h.bus.InitRoutes(v1)
 
 	return h.r
 }
