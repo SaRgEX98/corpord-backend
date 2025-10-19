@@ -10,6 +10,7 @@ type PostgresRepository struct {
 	User   UserRepository
 	Auth   AuthRepository
 	Bus    BusRepository
+	Bc     BusCategory
 }
 
 func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
@@ -18,5 +19,6 @@ func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
 		User:   NewUserRepository(logger, qb),
 		Auth:   NewAuthRepository(logger, qb),
 		Bus:    NewBusRepository(logger, qb),
+		Bc:     NewBusCategory(logger, qb),
 	}
 }

@@ -16,6 +16,7 @@ type handler struct {
 	user   *UserHandler
 	auth   *AuthHandler
 	bus    *BusHandler
+	bc     *BusCategoryHandler
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
@@ -29,6 +30,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		user:   NewUser(logger, s.User),
 		auth:   NewAuthHandler(s.Auth, logger),
 		bus:    NewBus(logger, s.Bus),
+		bc:     NewBusCategory(logger, s.BC),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
@@ -57,6 +59,11 @@ func (h *handler) InitRoutes() *gin.Engine {
 		{
 			bus.GET("/", h.bus.GetAllBuses)
 			bus.GET("/:id", h.bus.GetBus)
+		}
+		busCategories := v1.Group("/bus_categories")
+		{
+			busCategories.GET("/", h.bc.GetAll)
+			busCategories.GET("/:id", h.bc.GetById)
 		}
 		// Protected routes - require valid JWT token
 		authorized := v1.Group("")

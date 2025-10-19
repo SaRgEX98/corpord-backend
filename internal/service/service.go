@@ -13,6 +13,7 @@ type Service struct {
 	User   User
 	Auth   Auth
 	Bus    Bus
+	BC     BusCategory
 }
 
 // New creates a new service instance with all dependencies
@@ -24,5 +25,6 @@ func New(logger *logger.Logger, repo *repository.Repository, token token.Manager
 		User:   NewUser(logger, repo.PgRepository.User),
 		Auth:   NewAuth(logger, token, repo.PgRepository.Auth),
 		Bus:    NewBus(logger, repo.PgRepository.Bus),
+		BC:     NewBusCategory(logger, repo.PgRepository.Bc),
 	}
 }
