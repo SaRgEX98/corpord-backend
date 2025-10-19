@@ -37,7 +37,7 @@ func NewAuthRepository(logger *logger.Logger, qb *dbx.QueryBuilder) AuthReposito
 // CreateUser creates a new user in the database
 func (r *authRepository) CreateUser(ctx context.Context, user *model.UserCreate) (int, error) {
 	query, args, err := r.qb.Sq.Insert(TableUsers).
-		Columns("email", "password_hash", "name", "role_id", "created_at", "updated_at").
+		Columns("email", "password_hash", "name").
 		Values(
 			user.Email,
 			user.Password,

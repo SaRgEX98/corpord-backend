@@ -71,8 +71,6 @@ func (s *auth) Register(ctx context.Context, input *model.UserCreate) (*model.Us
 
 	response := &model.UserResponse{
 		ID:        createdUser.ID,
-		Email:     createdUser.Email,
-		Name:      createdUser.Name,
 		CreatedAt: createdUser.CreatedAt,
 		UpdatedAt: createdUser.UpdatedAt,
 	}
@@ -106,7 +104,6 @@ func (s *auth) Login(ctx context.Context, credentials model.UserLogin) (string, 
 		s.logger.Error("Failed to generate token", "error", err, "user_id", u.ID)
 		return "", errors.New("ошибка при аутентификации")
 	}
-
 	s.logger.Info("User logged in successfully", "user_id", u.ID, "email", u.Email)
 	return t, nil
 }
