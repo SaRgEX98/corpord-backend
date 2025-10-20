@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
 	"errors"
 	"net/http"
@@ -43,8 +44,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req model.UserCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{
-			Error: ErrBadRequest.Message,
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrBadRequest.Message,
 		})
 		return
 	}
@@ -53,13 +54,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if err != nil {
 		h.logger.Warnf("registration failed: %v", err)
 		if errors.Is(err, service.ErrEmailExists) {
-			c.JSON(http.StatusConflict, ErrorResponse{
+			c.JSON(http.StatusConflict, apperrors.ErrorResponse{
 				Error: "Пользователь с таким email уже существует",
 			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{
-			Error: ErrInternal.Message,
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrInternal.Message,
 		})
 		return
 	}
@@ -87,8 +88,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req model.UserLogin
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{
-			Error: ErrBadRequest.Message,
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrBadRequest.Message,
 		})
 		return
 	}
@@ -97,13 +98,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		h.logger.Warnf("login failed for %s: %v", req.Email, err)
 		if errors.Is(err, service.ErrInvalidCredentials) {
-			c.JSON(ErrUnauthorized.Status, ErrorResponse{
+			c.JSON(apperrors.ErrUnauthorized.Status, apperrors.ErrorResponse{
 				Error: "Неверный email или пароль",
 			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{
-			Error: ErrInternal.Message,
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrInternal.Message,
 		})
 		return
 	}

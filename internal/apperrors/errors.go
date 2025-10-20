@@ -1,4 +1,4 @@
-package handler
+package apperrors
 
 import "net/http"
 

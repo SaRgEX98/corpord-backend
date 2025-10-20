@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
@@ -23,17 +24,6 @@ func NewBus(logger *logger.Logger, bus service.Bus) *BusHandler {
 	}
 }
 
-func (h *BusHandler) InitRoutes(v1 *gin.RouterGroup) {
-	v1.GET("/", h.GetAllBuses)
-	v1.GET("/:id", h.GetBus)
-	admin := v1.Group("/admin/bus")
-	{
-		admin.POST("/", h.CreateBus)
-		admin.PUT("/:id", h.UpdateBus)
-		admin.DELETE("/:id", h.DeleteBus)
-	}
-}
-
 // GetAllBuses retrieves a list of all buses
 // @Summary Получить список всех автобусов
 // @Description Возвращает список всех автобусов в системе
@@ -46,7 +36,9 @@ func (h *BusHandler) GetAllBuses(c *gin.Context) {
 	buses, err := h.bus.GetAllBuses(c.Request.Context())
 	if err != nil {
 		h.logger.Errorf("failed to get all buses: %v", err)
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: ErrInternal.Message})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrInternal.Message,
+		})
 		return
 	}
 
@@ -66,7 +58,9 @@ func (h *BusHandler) GetAllBuses(c *gin.Context) {
 func (h *BusHandler) GetBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID автобуса"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID автобуса",
+		})
 		return
 	}
 
@@ -74,10 +68,14 @@ func (h *BusHandler) GetBus(c *gin.Context) {
 	if err != nil {
 		h.logger.Errorf("failed to get bus %d: %v", id, err)
 		if errors.Is(err, service.ErrBusNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Автобус не найден"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
+				Error: "Автобус не найден",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: ErrInternal.Message})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrInternal.Message,
+		})
 		return
 	}
 
@@ -103,17 +101,20 @@ func (h *BusHandler) CreateBus(c *gin.Context) {
 	var bus model.Bus
 	if err := c.ShouldBindJSON(&bus); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректные данные автобуса"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректные данные автобуса",
+		})
 		return
 	}
 
 	if err := h.bus.CreateBus(c.Request.Context(), bus); err != nil {
 		h.logger.Errorf("failed to create bus: %v", err)
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось создать автобус"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось создать автобус"})
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "Автобус успешно создан"})
+	c.JSON(http.StatusOK, apperrors.SuccessResponse{Message: "Автобус успешно создан"})
 }
 
 // UpdateBus updates an existing bus (Admin only)
@@ -135,7 +136,9 @@ func (h *BusHandler) CreateBus(c *gin.Context) {
 func (h *BusHandler) UpdateBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID автобуса"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID автобуса",
+		})
 		return
 	}
 
@@ -143,21 +146,23 @@ func (h *BusHandler) UpdateBus(c *gin.Context) {
 	update.ID = id
 	if err := c.ShouldBindJSON(&update); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректные данные для обновления"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректные данные для обновления",
+		})
 		return
 	}
 
 	if err := h.bus.UpdateBus(c.Request.Context(), update); err != nil {
 		h.logger.Errorf("failed to update bus %d: %v", id, err)
 		if errors.Is(err, service.ErrBusNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Автобус не найден"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: "Автобус не найден"})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось обновить данные автобуса"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{Error: "Не удалось обновить данные автобуса"})
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "Данные автобуса успешно обновлены"})
+	c.JSON(http.StatusOK, apperrors.SuccessResponse{Message: "Данные автобуса успешно обновлены"})
 }
 
 // DeleteBus removes a bus by ID (Admin only)
@@ -177,17 +182,19 @@ func (h *BusHandler) UpdateBus(c *gin.Context) {
 func (h *BusHandler) DeleteBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID автобуса"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID автобуса",
+		})
 		return
 	}
 
 	if err := h.bus.DeleteBus(c.Request.Context(), id); err != nil {
 		h.logger.Errorf("failed to delete bus %d: %v", id, err)
 		if errors.Is(err, service.ErrBusNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Автобус не найден"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: "Автобус не найден"})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось удалить автобус"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{Error: "Не удалось удалить автобус"})
 		return
 	}
 

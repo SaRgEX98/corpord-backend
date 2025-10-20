@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
@@ -42,7 +43,9 @@ func (h *UserHandler) All(c *gin.Context) {
 	users, err := h.s.GetAll(c.Request.Context())
 	if err != nil {
 		h.logger.Errorf("failed to get users: %v", err)
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось получить список пользователей"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось получить список пользователей",
+		})
 		return
 	}
 
@@ -66,7 +69,9 @@ func (h *UserHandler) All(c *gin.Context) {
 func (h *UserHandler) Get(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID пользователя"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID пользователя",
+		})
 		return
 	}
 
@@ -74,10 +79,14 @@ func (h *UserHandler) Get(c *gin.Context) {
 	if err != nil {
 		h.logger.Errorf("failed to get user %d: %v", id, err)
 		if errors.Is(err, service.ErrUserNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Пользователь не найден"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
+				Error: "Пользователь не найден",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось получить данные пользователя"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось получить данные пользователя",
+		})
 		return
 	}
 
@@ -95,26 +104,31 @@ func (h *UserHandler) Get(c *gin.Context) {
 // @Success 201 {object} model.UserResponse "Пользователь успешно создан"
 // @Failure 400 {object} ErrorResponse "Некорректные данные"
 // @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
 // @Failure 409 {object} ErrorResponse "Пользователь с таким email уже существует"
 // @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
 // @Router /api/v1/admin/users [post]
 func (h *UserHandler) Create(c *gin.Context) {
-	var user model.UserCreate
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var input model.UserCreate
+	if err := c.ShouldBindJSON(&input); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректные данные пользователя"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректные данные",
+		})
 		return
 	}
 
-	createdUser, err := h.s.Create(c.Request.Context(), &user)
+	createdUser, err := h.s.Create(c.Request.Context(), &input)
 	if err != nil {
 		h.logger.Errorf("failed to create user: %v", err)
 		if errors.Is(err, service.ErrEmailExists) {
-			c.JSON(http.StatusConflict, ErrorResponse{Error: "Пользователь с таким email уже существует"})
+			c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+				Error: "Пользователь с таким email уже существует",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось создать пользователя"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось создать пользователя",
+		})
 		return
 	}
 
@@ -140,14 +154,18 @@ func (h *UserHandler) Create(c *gin.Context) {
 func (h *UserHandler) Update(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID пользователя"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID пользователя",
+		})
 		return
 	}
 
 	var update model.UserUpdate
 	if err := c.ShouldBindJSON(&update); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректные данные для обновления"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректные данные для обновления",
+		})
 		return
 	}
 
@@ -155,10 +173,14 @@ func (h *UserHandler) Update(c *gin.Context) {
 	if err != nil {
 		h.logger.Errorf("failed to update user %d: %v", id, err)
 		if errors.Is(err, service.ErrUserNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Пользователь не найден"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
+				Error: "Пользователь не найден",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось обновить данные пользователя"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось обновить данные пользователя",
+		})
 		return
 	}
 
@@ -182,17 +204,23 @@ func (h *UserHandler) Update(c *gin.Context) {
 func (h *UserHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID пользователя"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID пользователя",
+		})
 		return
 	}
 
 	if err := h.s.Delete(c.Request.Context(), id); err != nil {
 		h.logger.Errorf("failed to delete user %d: %v", id, err)
 		if errors.Is(err, service.ErrUserNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Пользователь не найден"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
+				Error: "Пользователь не найден",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось удалить пользователя"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось удалить пользователя",
+		})
 		return
 	}
 

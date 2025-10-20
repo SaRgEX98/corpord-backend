@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
@@ -36,7 +37,9 @@ func (h *BusCategoryHandler) GetAll(c *gin.Context) {
 	output, err := h.bc.GetAll(c.Request.Context())
 	if err != nil {
 		h.logger.Errorf("error while getting categories: %v", err)
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось получить список категорий"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось получить список категорий",
+		})
 		return
 	}
 	c.JSON(http.StatusOK, output)
@@ -56,7 +59,9 @@ func (h *BusCategoryHandler) GetAll(c *gin.Context) {
 func (h *BusCategoryHandler) GetById(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID категории"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID категории",
+		})
 		return
 	}
 
@@ -64,10 +69,14 @@ func (h *BusCategoryHandler) GetById(c *gin.Context) {
 	if err != nil {
 		h.logger.Errorf("failed to get category: %v", err)
 		if errors.Is(err, service.ErrBusCategoryNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Категория не найдена"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
+				Error: "Категория не найдена",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось получить данные категории"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось получить данные категории",
+		})
 		return
 	}
 
@@ -94,21 +103,29 @@ func (h *BusCategoryHandler) Create(c *gin.Context) {
 	var input model.BusCategory
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректные данные категории"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректные данные категории",
+		})
 		return
 	}
 
 	if err := h.bc.Create(c.Request.Context(), input); err != nil {
 		h.logger.Errorf("failed to create category: %v", err)
 		if errors.Is(err, service.ErrBusCategoryExists) {
-			c.JSON(http.StatusConflict, ErrorResponse{Error: "Категория с таким названием уже существует"})
+			c.JSON(http.StatusConflict, apperrors.ErrorResponse{
+				Error: "Категория с таким названием уже существует",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось создать категорию"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось создать категорию",
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, SuccessResponse{Message: "Категория успешно создана"})
+	c.JSON(http.StatusCreated, apperrors.SuccessResponse{
+		Message: "Категория успешно создана",
+	})
 }
 
 // Delete удаляет категорию автобуса
@@ -129,17 +146,22 @@ func (h *BusCategoryHandler) Create(c *gin.Context) {
 func (h *BusCategoryHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID категории"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID категории",
+		})
 		return
 	}
 
 	if err := h.bc.Delete(c.Request.Context(), id); err != nil {
 		h.logger.Errorf("failed to delete category %d: %v", id, err)
 		if errors.Is(err, service.ErrBusCategoryNotFound) {
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Категория не найдена"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
+				Error: "Категория не найдена",
+			})
 			return
 		}
-		c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось удалить категорию"})
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: "Не удалось удалить категорию"})
 		return
 	}
 
@@ -167,14 +189,18 @@ func (h *BusCategoryHandler) Delete(c *gin.Context) {
 func (h *BusCategoryHandler) Update(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректный ID категории"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректный ID категории",
+		})
 		return
 	}
 
 	var category model.BusCategory
 	if err := c.ShouldBindJSON(&category); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(ErrBadRequest.Status, ErrorResponse{Error: "Некорректные данные для обновления"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: "Некорректные данные для обновления",
+		})
 		return
 	}
 
@@ -185,11 +211,11 @@ func (h *BusCategoryHandler) Update(c *gin.Context) {
 		h.logger.Errorf("failed to update category %d: %v", id, err)
 		switch {
 		case errors.Is(err, service.ErrBusCategoryNotFound):
-			c.JSON(ErrNotFound.Status, ErrorResponse{Error: "Категория не найдена"})
+			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: "Категория не найдена"})
 		case errors.Is(err, service.ErrBusCategoryExists):
-			c.JSON(http.StatusConflict, ErrorResponse{Error: "Категория с таким названием уже существует"})
+			c.JSON(http.StatusConflict, apperrors.ErrorResponse{Error: "Категория с таким названием уже существует"})
 		default:
-			c.JSON(ErrInternal.Status, ErrorResponse{Error: "Не удалось обновить категорию"})
+			c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{Error: "Не удалось обновить категорию"})
 		}
 		return
 	}
