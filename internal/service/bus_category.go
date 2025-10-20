@@ -10,9 +10,9 @@ import (
 type BusCategory interface {
 	GetAll(ctx context.Context) ([]model.BusCategory, error)
 	GetById(ctx context.Context, id int) (*model.BusCategory, error)
-	Create()
-	Update()
-	Delete()
+	Create(ctx context.Context, category model.BusCategory) error
+	Update(ctx context.Context, category model.BusCategory) error
+	Delete(ctx context.Context, id int) error
 }
 
 type busCategory struct {
@@ -35,17 +35,17 @@ func (b *busCategory) GetById(ctx context.Context, id int) (*model.BusCategory, 
 	return b.repo.GetById(ctx, id)
 }
 
-func (b *busCategory) Create() {
-	//TODO implement me
-	panic("implement me")
+func (b *busCategory) Create(ctx context.Context, category model.BusCategory) error {
+	return b.repo.Create(ctx, category)
 }
 
-func (b *busCategory) Update() {
-	//TODO implement me
-	panic("implement me")
+func (b *busCategory) Update(ctx context.Context, category model.BusCategory) error {
+	if err := category.Validate(); err != nil {
+		return err
+	}
+	return b.repo.Update(ctx, category)
 }
 
-func (b *busCategory) Delete() {
-	//TODO implement me
-	panic("implement me")
+func (b *busCategory) Delete(ctx context.Context, id int) error {
+	return b.repo.Delete(ctx, id)
 }

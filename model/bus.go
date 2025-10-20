@@ -51,6 +51,13 @@ type BusCategory struct {
 	Name string `json:"name" db:"name"`
 }
 
+func (bc *BusCategory) Validate() error {
+	if &bc.ID == nil && &bc.Name == nil {
+		return errors.New("at least one field must be updated")
+	}
+	return nil
+}
+
 type BusStatus struct {
 	ID   int    `json:"id" db:"id"`
 	Name string `json:"name" db:"name"`
