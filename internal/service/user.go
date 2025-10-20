@@ -12,12 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrUserNotFound       = errors.New("user not found")
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrEmailExists        = errors.New("email already exists")
-)
-
 type User interface {
 	GetAll(ctx context.Context) ([]*model.UserResponse, error)
 	GetByID(ctx context.Context, id int) (*model.UserResponse, error)
