@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/pressly/goose/v3"
 	"time"
+
+	"github.com/pressly/goose/v3"
 )
 
 type Migrator struct {

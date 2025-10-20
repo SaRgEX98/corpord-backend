@@ -2,11 +2,13 @@ package database
 
 import (
 	"context"
-	"github.com/jmoiron/sqlx"
 	"log"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
 	"corpord-api/internal/config"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 )

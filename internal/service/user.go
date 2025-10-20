@@ -8,6 +8,7 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository/pg"
 	"corpord-api/model"
+
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -4,10 +4,11 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {

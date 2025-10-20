@@ -7,6 +7,7 @@ import (
 
 	"corpord-api/internal/service"
 	"corpord-api/model"
+
 	"github.com/gin-gonic/gin"
 )
 

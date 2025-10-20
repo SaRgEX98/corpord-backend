@@ -7,6 +7,7 @@ import (
 	"corpord-api/internal/token"
 	"corpord-api/model"
 	"errors"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
