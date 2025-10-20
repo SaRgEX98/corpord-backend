@@ -29,6 +29,7 @@ go.work.sum
 # yaml file
 *.yaml
 !example.yaml
+!swagger.yaml
 
 # log file
 *.log

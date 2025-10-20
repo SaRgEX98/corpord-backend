@@ -1,0 +1,574 @@
+basePath: /api/v1
+definitions:
+  handler.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handler.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  model.Bus:
+    properties:
+      brand:
+        type: string
+      capacity:
+        type: integer
+      category:
+        $ref: '#/definitions/model.BusCategory'
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      license_plate:
+        type: string
+      status:
+        $ref: '#/definitions/model.BusStatus'
+      status_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.BusCategory:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  model.BusStatus:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  model.BusUpdate:
+    properties:
+      brand:
+        type: string
+      capacity:
+        type: integer
+      category_id:
+        type: integer
+      id:
+        type: integer
+      license_plate:
+        type: string
+      status_id:
+        type: integer
+    type: object
+  model.TokenResponse:
+    properties:
+      access_token:
+        type: string
+    type: object
+  model.UserCreate:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  model.UserLogin:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  model.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.UserUpdate:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: luchitstimofei@yandex.ru
+    name: Luchits Timofei
+    url: http://example.com
+  description: This is a server for order private bus.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Ordering Bus API
+  version: "1.0"
+paths:
+  /api/v1/admin/bus:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую запись об автобусе (требуются права администратора)
+      parameters:
+      - description: Данные автобуса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Bus'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Автобус успешно создан
+          schema:
+            $ref: '#/definitions/handler.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Создать новый автобус (только админ)
+      tags:
+      - admin
+  /api/v1/admin/bus/{id}:
+    delete:
+      description: Удаляет запись об автобусе по ID (требуются права администратора)
+      parameters:
+      - description: ID автобуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Автобус успешно удален
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Автобус не найден
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Удалить автобус (только админ)
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию об автобусе по ID (требуются права администратора)
+      parameters:
+      - description: ID автобуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные автобуса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.BusUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные автобуса обновлены
+          schema:
+            $ref: '#/definitions/handler.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Автобус не найден
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить данные автобуса (только админ)
+      tags:
+      - admin
+  /api/v1/admin/users:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую учетную запись пользователя (только для администраторов)
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь успешно создан
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Пользователь с таким email уже существует
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Создать нового пользователя
+      tags:
+      - admin
+  /api/v1/admin/users/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию о пользователе по ID (только для администраторов)
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные пользователя
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные пользователя обновлены
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить данные пользователя
+      tags:
+      - admin
+  /api/v1/buses:
+    get:
+      description: Возвращает список всех автобусов в системе
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список автобусов
+          schema:
+            items:
+              $ref: '#/definitions/model.Bus'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Получить список всех автобусов
+      tags:
+      - buses
+  /api/v1/buses/{id}:
+    get:
+      description: Возвращает информацию об автобусе по его идентификатору
+      parameters:
+      - description: ID автобуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные автобуса
+          schema:
+            $ref: '#/definitions/model.Bus'
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Автобус не найден
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Получить автобус по ID
+      tags:
+      - buses
+  /api/v1/users:
+    get:
+      description: Возвращает список всех зарегистрированных пользователей (только
+        для администраторов)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список пользователей
+          schema:
+            items:
+              $ref: '#/definitions/model.UserResponse'
+            type: array
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить всех пользователей
+      tags:
+      - users
+  /api/v1/users/{id}:
+    delete:
+      description: Удаляет учетную запись пользователя по ID (только для администраторов)
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Пользователь успешно удален
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Удалить пользователя
+      tags:
+      - users
+    get:
+      description: Возвращает информацию о пользователе по его идентификатору
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные пользователя
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить пользователя по ID
+      tags:
+      - users
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Вход пользователя в систему
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserLogin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный вход
+          schema:
+            $ref: '#/definitions/model.TokenResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Неверные учетные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Аутентификация пользователя
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Создает нового пользователя в системе
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Успешная регистрация
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Пользователь уже существует
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Регистрация нового пользователя
+      tags:
+      - auth
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

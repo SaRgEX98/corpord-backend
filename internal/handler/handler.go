@@ -1,15 +1,16 @@
 package handler
 
 import (
+	_ "corpord-api/docs"
 	"corpord-api/internal/config"
 	"corpord-api/internal/handler/middleware"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/internal/token"
-
-	"github.com/gin-gonic/gin"
-
 	"corpord-api/model"
+	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 )
 
 type handler struct {
@@ -42,7 +43,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 // InitRoutes initializes all the routes for the application
 func (h *handler) InitRoutes() *gin.Engine {
 	h.logger.Info("Initializing routes")
-
+	h.r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	// Add global middleware
 	h.r.Use(middleware.RequestLogger(h.logger))
 
