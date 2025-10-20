@@ -13,7 +13,7 @@ type BusCategory interface {
 	GetAll(ctx context.Context) ([]model.BusCategory, error)
 	GetById(ctx context.Context, id int) (*model.BusCategory, error)
 	Create(ctx context.Context, category model.BusCategory) error
-	Update(ctx context.Context, category model.BusCategory) error
+	Update(ctx context.Context, category model.BusCategory) (model.BusCategory, error)
 	Delete(ctx context.Context, id int) error
 }
 
@@ -100,22 +100,23 @@ func (b *busCategory) Create(ctx context.Context, category model.BusCategory) er
 	return nil
 }
 
-func (b *busCategory) Update(ctx context.Context, category model.BusCategory) error {
+func (b *busCategory) Update(ctx context.Context, category model.BusCategory) (model.BusCategory, error) {
 	query, args, err := b.qb.Sq.Update(TableBusCategories).
 		Set("name", category.Name).
 		Where(sq.Eq{"id": category.ID}).
 		ToSql()
 	if err != nil {
 		b.logger.Errorf("failed to create query: %s \n err: %v", query, err)
-		return err
+		return model.BusCategory{}, err
 	}
 
 	_, err = b.qb.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		b.logger.Errorf("failed to execute query: %s\nerror: %v", query, err)
-		return err
+		return model.BusCategory{}, err
 	}
-	return nil
+
+	return category, nil
 }
 
 func (b *busCategory) Delete(ctx context.Context, id int) error {

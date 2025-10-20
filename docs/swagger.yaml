@@ -22,6 +22,8 @@ definitions:
         type: integer
       created_at:
         type: string
+      deleted_at:
+        type: string
       id:
         type: integer
       license_plate:
@@ -256,6 +258,156 @@ paths:
       summary: Обновить данные автобуса (только админ)
       tags:
       - admin
+  /api/v1/admin/bus/categories:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую категорию автобуса (только для администраторов)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Данные категории
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.BusCategory'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Категория успешно создана
+          schema:
+            $ref: '#/definitions/handler.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен. Требуются права администратора
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Категория с таким названием уже существует
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Создать новую категорию автобуса
+      tags:
+      - bus_categories
+  /api/v1/admin/bus/categories/{id}:
+    delete:
+      description: Удаляет категорию автобуса по ID (только для администраторов)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID категории
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Категория успешно удалена
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен. Требуются права администратора
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Категория не найдена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Удалить категорию автобуса
+      tags:
+      - bus_categories
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию о категории автобуса по ID (только для администраторов)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID категории
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные категории
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.BusCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Обновленные данные категории
+          schema:
+            $ref: '#/definitions/model.BusCategory'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Доступ запрещен. Требуются права администратора
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Категория не найдена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Категория с таким названием уже существует
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить категорию автобуса
+      tags:
+      - bus_categories
   /api/v1/admin/users:
     post:
       consumes:
@@ -349,6 +501,58 @@ paths:
       summary: Обновить данные пользователя
       tags:
       - admin
+  /api/v1/bus/categories:
+    get:
+      description: Возвращает список всех доступных категорий автобусов. Доступно
+        всем пользователям
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список категорий автобусов
+          schema:
+            items:
+              $ref: '#/definitions/model.BusCategory'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Получить все категории автобусов
+      tags:
+      - bus_categories
+  /api/v1/bus/categories/{id}:
+    get:
+      description: Возвращает информацию о категории автобуса по её идентификатору.
+        Доступно всем пользователям
+      parameters:
+      - description: ID категории
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные категории
+          schema:
+            $ref: '#/definitions/model.BusCategory'
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Категория не найдена
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Получить категорию по ID
+      tags:
+      - bus_categories
   /api/v1/buses:
     get:
       description: Возвращает список всех автобусов в системе

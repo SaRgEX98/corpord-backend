@@ -11,7 +11,7 @@ type BusCategory interface {
 	GetAll(ctx context.Context) ([]model.BusCategory, error)
 	GetById(ctx context.Context, id int) (*model.BusCategory, error)
 	Create(ctx context.Context, category model.BusCategory) error
-	Update(ctx context.Context, category model.BusCategory) error
+	Update(ctx context.Context, category model.BusCategory) (model.BusCategory, error)
 	Delete(ctx context.Context, id int) error
 }
 
@@ -39,9 +39,9 @@ func (b *busCategory) Create(ctx context.Context, category model.BusCategory) er
 	return b.repo.Create(ctx, category)
 }
 
-func (b *busCategory) Update(ctx context.Context, category model.BusCategory) error {
+func (b *busCategory) Update(ctx context.Context, category model.BusCategory) (model.BusCategory, error) {
 	if err := category.Validate(); err != nil {
-		return err
+		return model.BusCategory{}, err
 	}
 	return b.repo.Update(ctx, category)
 }
