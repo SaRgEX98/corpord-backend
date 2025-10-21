@@ -68,6 +68,11 @@ func (h *handler) InitRoutes() *gin.Engine {
 				busCategories.GET("/", h.bc.GetAll)
 				busCategories.GET("/:id", h.bc.GetById)
 			}
+			busStatus := bus.Group("/statuses")
+			{
+				busStatus.GET("/", h.bs.All)
+				busStatus.GET("/:id", h.bs.ByID)
+			}
 		}
 		// Protected routes - require valid JWT token
 		authorized := v1.Group("")
@@ -89,11 +94,17 @@ func (h *handler) InitRoutes() *gin.Engine {
 					bus.POST("/", h.bus.CreateBus)
 					bus.PUT("/:id", h.bus.UpdateBus)
 					bus.DELETE("/:id", h.bus.DeleteBus)
-					categories := bus.Group("categories")
+					categories := bus.Group("/categories")
 					{
 						categories.POST("/", h.bc.Create)
 						categories.DELETE("/:id", h.bc.Delete)
 						categories.PUT("/:id", h.bc.Update)
+					}
+					status := bus.Group("/statuses")
+					{
+						status.POST("/", h.bs.Create)
+						status.PUT("/:id", h.bs.Update)
+						status.DELETE("/:id", h.bs.Delete)
 					}
 				}
 			}
