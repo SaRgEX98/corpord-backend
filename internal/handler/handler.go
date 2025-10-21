@@ -18,6 +18,7 @@ type handler struct {
 	auth   *AuthHandler
 	bus    *BusHandler
 	bc     *BusCategoryHandler
+	bs     *BusStatusHandler
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
@@ -32,6 +33,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		auth:   NewAuthHandler(s.Auth, logger),
 		bus:    NewBus(logger, s.Bus),
 		bc:     NewBusCategory(logger, s.BC),
+		bs:     NewBusStatus(logger, s.BS),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
