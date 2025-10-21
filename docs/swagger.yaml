@@ -1,11 +1,11 @@
 basePath: /api/v1
 definitions:
-  handler.ErrorResponse:
+  apperrors.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  handler.SuccessResponse:
+  apperrors.SuccessResponse:
     properties:
       message:
         type: string
@@ -131,144 +131,12 @@ info:
   title: Ordering Bus API
   version: "1.0"
 paths:
-  /api/v1/admin/bus:
-    post:
-      consumes:
-      - application/json
-      description: Создает новую запись об автобусе (требуются права администратора)
-      parameters:
-      - description: Данные автобуса
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.Bus'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Автобус успешно создан
-          schema:
-            $ref: '#/definitions/handler.SuccessResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Ошибка сервера
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Создать новый автобус (только админ)
-      tags:
-      - admin
-  /api/v1/admin/bus/{id}:
-    delete:
-      description: Удаляет запись об автобусе по ID (требуются права администратора)
-      parameters:
-      - description: ID автобуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: Автобус успешно удален
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Автобус не найден
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Ошибка сервера
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Удалить автобус (только админ)
-      tags:
-      - admin
-    put:
-      consumes:
-      - application/json
-      description: Обновляет информацию об автобусе по ID (требуются права администратора)
-      parameters:
-      - description: ID автобуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Обновленные данные автобуса
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.BusUpdate'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные автобуса обновлены
-          schema:
-            $ref: '#/definitions/handler.SuccessResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Автобус не найден
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Ошибка сервера
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Обновить данные автобуса (только админ)
-      tags:
-      - admin
-  /api/v1/admin/bus/categories:
+  /admin/bus/categories:
     post:
       consumes:
       - application/json
       description: Создает новую категорию автобуса (только для администраторов)
       parameters:
-      - description: Bearer <token>
-        in: header
-        name: Authorization
-        required: true
-        type: string
       - description: Данные категории
         in: body
         name: input
@@ -281,41 +149,36 @@ paths:
         "201":
           description: Категория успешно создана
           schema:
-            $ref: '#/definitions/handler.SuccessResponse'
+            $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
           description: Доступ запрещен. Требуются права администратора
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "409":
           description: Категория с таким названием уже существует
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - Bearer: []
       summary: Создать новую категорию автобуса
       tags:
-      - bus_categories
-  /api/v1/admin/bus/categories/{id}:
+      - admin/bus/categories
+  /admin/bus/categories/{id}:
     delete:
       description: Удаляет категорию автобуса по ID (только для администраторов)
       parameters:
-      - description: Bearer <token>
-        in: header
-        name: Authorization
-        required: true
-        type: string
       - description: ID категории
         in: path
         name: id
@@ -329,38 +192,33 @@ paths:
         "400":
           description: Некорректный ID
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
           description: Доступ запрещен. Требуются права администратора
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
           description: Категория не найдена
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - Bearer: []
       summary: Удалить категорию автобуса
       tags:
-      - bus_categories
+      - admin/bus/categories
     put:
       consumes:
       - application/json
       description: Обновляет информацию о категории автобуса по ID (только для администраторов)
       parameters:
-      - description: Bearer <token>
-        in: header
-        name: Authorization
-        required: true
-        type: string
       - description: ID категории
         in: path
         name: id
@@ -382,33 +240,33 @@ paths:
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
           description: Доступ запрещен. Требуются права администратора
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
           description: Категория не найдена
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "409":
           description: Категория с таким названием уже существует
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - Bearer: []
       summary: Обновить категорию автобуса
       tags:
-      - bus_categories
-  /api/v1/admin/users:
+      - admin/bus/categories
+  /admin/users:
     post:
       consumes:
       - application/json
@@ -430,29 +288,25 @@ paths:
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "409":
           description: Пользователь с таким email уже существует
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - Bearer: []
       summary: Создать нового пользователя
       tags:
       - admin
-  /api/v1/admin/users/{id}:
+  /admin/users/{id}:
     put:
       consumes:
       - application/json
@@ -479,54 +333,73 @@ paths:
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
           description: Не авторизован
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
           description: Доступ запрещен
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
           description: Пользователь не найден
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - Bearer: []
       summary: Обновить данные пользователя
       tags:
       - admin
-  /api/v1/bus/categories:
-    get:
-      description: Возвращает список всех доступных категорий автобусов. Доступно
-        всем пользователям
+  /api/v1/admin/bus:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую запись об автобусе (требуются права администратора)
+      parameters:
+      - description: Данные автобуса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Bus'
       produces:
       - application/json
       responses:
         "200":
-          description: Список категорий автобусов
+          description: Автобус успешно создан
           schema:
-            items:
-              $ref: '#/definitions/model.BusCategory'
-            type: array
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Внутренняя ошибка сервера
+          description: Ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      summary: Получить все категории автобусов
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать новый автобус (только админ)
       tags:
-      - bus_categories
-  /api/v1/bus/categories/{id}:
-    get:
-      description: Возвращает информацию о категории автобуса по её идентификатору.
-        Доступно всем пользователям
+      - admin/bus
+  /api/v1/admin/bus/{id}:
+    delete:
+      description: Удаляет запись об автобусе по ID (требуются права администратора)
       parameters:
-      - description: ID категории
+      - description: ID автобуса
         in: path
         name: id
         required: true
@@ -534,25 +407,81 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: Данные категории
-          schema:
-            $ref: '#/definitions/model.BusCategory'
+        "204":
+          description: Автобус успешно удален
         "400":
           description: Некорректный ID
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Категория не найдена
+          description: Автобус не найден
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Внутренняя ошибка сервера
+          description: Ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      summary: Получить категорию по ID
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить автобус (только админ)
       tags:
-      - bus_categories
+      - admin/bus
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию об автобусе по ID (требуются права администратора)
+      parameters:
+      - description: ID автобуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные автобуса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.BusUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные автобуса обновлены
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Автобус не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Обновить данные автобуса (только админ)
+      tags:
+      - admin/bus
   /api/v1/buses:
     get:
       description: Возвращает список всех автобусов в системе
@@ -568,7 +497,7 @@ paths:
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       summary: Получить список всех автобусов
       tags:
       - buses
@@ -591,119 +520,14 @@ paths:
         "400":
           description: Некорректный ID
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
           description: Автобус не найден
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       summary: Получить автобус по ID
       tags:
       - buses
-  /api/v1/users:
-    get:
-      description: Возвращает список всех зарегистрированных пользователей (только
-        для администраторов)
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список пользователей
-          schema:
-            items:
-              $ref: '#/definitions/model.UserResponse'
-            type: array
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Получить всех пользователей
-      tags:
-      - users
-  /api/v1/users/{id}:
-    delete:
-      description: Удаляет учетную запись пользователя по ID (только для администраторов)
-      parameters:
-      - description: ID пользователя
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: Пользователь успешно удален
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Пользователь не найден
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Удалить пользователя
-      tags:
-      - users
-    get:
-      description: Возвращает информацию о пользователе по его идентификатору
-      parameters:
-      - description: ID пользователя
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные пользователя
-          schema:
-            $ref: '#/definitions/model.UserResponse'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Пользователь не найден
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Получить пользователя по ID
-      tags:
-      - users
   /auth/login:
     post:
       consumes:
@@ -726,15 +550,15 @@ paths:
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
           description: Неверные учетные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       summary: Аутентификация пользователя
       tags:
       - auth
@@ -760,19 +584,179 @@ paths:
         "400":
           description: Некорректные данные
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "409":
           description: Пользователь уже существует
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
+            $ref: '#/definitions/apperrors.ErrorResponse'
       summary: Регистрация нового пользователя
       tags:
       - auth
+  /bus/categories:
+    get:
+      description: Возвращает список всех доступных категорий автобусов. Доступно
+        всем пользователям
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список категорий автобусов
+          schema:
+            items:
+              $ref: '#/definitions/model.BusCategory'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить все категории автобусов
+      tags:
+      - bus/categories
+  /bus/categories/{id}:
+    get:
+      description: Возвращает информацию о категории автобуса по её идентификатору.
+        Доступно всем пользователям
+      parameters:
+      - description: ID категории
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные категории
+          schema:
+            $ref: '#/definitions/model.BusCategory'
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Категория не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить категорию по ID
+      tags:
+      - bus/categories
+  /users:
+    get:
+      description: Возвращает список всех зарегистрированных пользователей (только
+        для администраторов)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список пользователей
+          schema:
+            items:
+              $ref: '#/definitions/model.UserResponse'
+            type: array
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получить всех пользователей
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      description: Удаляет учетную запись пользователя по ID (только для администраторов)
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Пользователь успешно удален
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить пользователя
+      tags:
+      - users
+    get:
+      description: Возвращает информацию о пользователе по его идентификатору
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные пользователя
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получить пользователя по ID
+      tags:
+      - users
 securityDefinitions:
-  BasicAuth:
-    type: basic
+  Bearer:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

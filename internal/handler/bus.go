@@ -30,7 +30,7 @@ func NewBus(logger *logger.Logger, bus service.Bus) *BusHandler {
 // @Tags buses
 // @Produce json
 // @Success 200 {array} model.Bus "Список автобусов"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /api/v1/buses [get]
 func (h *BusHandler) GetAllBuses(c *gin.Context) {
 	buses, err := h.bus.GetAllBuses(c.Request.Context())
@@ -52,8 +52,8 @@ func (h *BusHandler) GetAllBuses(c *gin.Context) {
 // @Produce json
 // @Param id path int true "ID автобуса"
 // @Success 200 {object} model.Bus "Данные автобуса"
-// @Failure 400 {object} ErrorResponse "Некорректный ID"
-// @Failure 404 {object} ErrorResponse "Автобус не найден"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
+// @Failure 404 {object} apperrors.ErrorResponse "Автобус не найден"
 // @Router /api/v1/buses/{id} [get]
 func (h *BusHandler) GetBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -86,16 +86,16 @@ func (h *BusHandler) GetBus(c *gin.Context) {
 // CreateBus creates a new bus (Admin only)
 // @Summary Создать новый автобус (только админ)
 // @Description Создает новую запись об автобусе (требуются права администратора)
-// @Security ApiKeyAuth
-// @Tags admin
+// @Security Bearer
+// @Tags admin/bus
 // @Accept json
 // @Produce json
 // @Param input body model.Bus true "Данные автобуса"
-// @Success 200 {object} SuccessResponse "Автобус успешно создан"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} ErrorResponse "Ошибка сервера"
+// @Success 200 {object} apperrors.SuccessResponse "Автобус успешно создан"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
 // @Router /api/v1/admin/bus [post]
 func (h *BusHandler) CreateBus(c *gin.Context) {
 	var bus model.Bus
@@ -120,18 +120,18 @@ func (h *BusHandler) CreateBus(c *gin.Context) {
 // UpdateBus updates an existing bus (Admin only)
 // @Summary Обновить данные автобуса (только админ)
 // @Description Обновляет информацию об автобусе по ID (требуются права администратора)
-// @Security ApiKeyAuth
-// @Tags admin
+// @Security Bearer
+// @Tags admin/bus
 // @Accept json
 // @Produce json
 // @Param id path int true "ID автобуса"
 // @Param input body model.BusUpdate true "Обновленные данные автобуса"
-// @Success 200 {object} SuccessResponse "Данные автобуса обновлены"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} ErrorResponse "Автобус не найден"
-// @Failure 500 {object} ErrorResponse "Ошибка сервера"
+// @Success 200 {object} apperrors.SuccessResponse "Данные автобуса обновлены"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Автобус не найден"
+// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
 // @Router /api/v1/admin/bus/{id} [put]
 func (h *BusHandler) UpdateBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -168,16 +168,16 @@ func (h *BusHandler) UpdateBus(c *gin.Context) {
 // DeleteBus removes a bus by ID (Admin only)
 // @Summary Удалить автобус (только админ)
 // @Description Удаляет запись об автобусе по ID (требуются права администратора)
-// @Security ApiKeyAuth
-// @Tags admin
+// @Security Bearer
+// @Tags admin/bus
 // @Produce json
 // @Param id path int true "ID автобуса"
 // @Success 204 "Автобус успешно удален"
-// @Failure 400 {object} ErrorResponse "Некорректный ID"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} ErrorResponse "Автобус не найден"
-// @Failure 500 {object} ErrorResponse "Ошибка сервера"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Автобус не найден"
+// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
 // @Router /api/v1/admin/bus/{id} [delete]
 func (h *BusHandler) DeleteBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))

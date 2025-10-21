@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"corpord-api/internal/app"
-	"fmt"
 	"log"
 	"os/signal"
 	"syscall"
@@ -24,9 +23,11 @@ import (
 // @host      localhost:8080
 // @BasePath  /api/v1
 
-// @securityDefinitions.basic  BasicAuth
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
-	fmt.Print("hello")
 	sig, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	defer cancel()
 
@@ -37,5 +38,4 @@ func main() {
 		}
 	}()
 	<-sig.Done()
-	log.Println("sadsg")
 }

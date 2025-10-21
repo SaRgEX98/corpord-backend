@@ -30,12 +30,12 @@ func NewUser(logger *logger.Logger, s service.User) *UserHandler {
 // @Description Возвращает список всех зарегистрированных пользователей (только для администраторов)
 // @Tags users
 // @Produce json
-// @Security ApiKeyAuth
+// @Security Bearer
 // @Success 200 {array} model.UserResponse "Список пользователей"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/users [get]
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /users [get]
 func (h *UserHandler) All(c *gin.Context) {
 	start := time.Now()
 	h.logger.Info("handling get all users request")
@@ -58,14 +58,14 @@ func (h *UserHandler) All(c *gin.Context) {
 // @Description Возвращает информацию о пользователе по его идентификатору
 // @Tags users
 // @Produce json
-// @Security ApiKeyAuth
+// @Security Bearer
 // @Param id path int true "ID пользователя"
 // @Success 200 {object} model.UserResponse "Данные пользователя"
-// @Failure 400 {object} ErrorResponse "Некорректный ID"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} ErrorResponse "Пользователь не найден"
-// @Router /api/v1/users/{id} [get]
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Пользователь не найден"
+// @Router /users/{id} [get]
 func (h *UserHandler) Get(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -99,14 +99,14 @@ func (h *UserHandler) Get(c *gin.Context) {
 // @Tags admin
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
+// @Security Bearer
 // @Param input body model.UserCreate true "Данные пользователя"
 // @Success 201 {object} model.UserResponse "Пользователь успешно создан"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 409 {object} ErrorResponse "Пользователь с таким email уже существует"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/admin/users [post]
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 409 {object} apperrors.ErrorResponse "Пользователь с таким email уже существует"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /admin/users [post]
 func (h *UserHandler) Create(c *gin.Context) {
 	var input model.UserCreate
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -141,16 +141,16 @@ func (h *UserHandler) Create(c *gin.Context) {
 // @Tags admin
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
+// @Security Bearer
 // @Param id path int true "ID пользователя"
 // @Param input body model.UserUpdate true "Обновленные данные пользователя"
 // @Success 200 {object} model.UserResponse "Данные пользователя обновлены"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} ErrorResponse "Пользователь не найден"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/admin/users/{id} [put]
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Пользователь не найден"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /admin/users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -192,15 +192,15 @@ func (h *UserHandler) Update(c *gin.Context) {
 // @Description Удаляет учетную запись пользователя по ID (только для администраторов)
 // @Tags users
 // @Produce json
-// @Security ApiKeyAuth
+// @Security Bearer
 // @Param id path int true "ID пользователя"
 // @Success 204 "Пользователь успешно удален"
-// @Failure 400 {object} ErrorResponse "Некорректный ID"
-// @Failure 401 {object} ErrorResponse "Не авторизован"
-// @Failure 403 {object} ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} ErrorResponse "Пользователь не найден"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/users/{id} [delete]
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Пользователь не найден"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

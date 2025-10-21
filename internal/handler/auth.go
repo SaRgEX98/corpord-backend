@@ -33,9 +33,9 @@ func NewAuthHandler(s service.Auth, l *logger.Logger) *AuthHandler {
 // @Produce json
 // @Param input body model.UserCreate true "Данные пользователя"
 // @Success 201 {object} model.UserResponse "Успешная регистрация"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 409 {object} ErrorResponse "Пользователь уже существует"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 409 {object} apperrors.ErrorResponse "Пользователь уже существует"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	start := time.Now()
@@ -77,9 +77,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 // @Produce json
 // @Param input body model.UserLogin true "Данные для входа"
 // @Success 200 {object} model.TokenResponse "Успешный вход"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 401 {object} ErrorResponse "Неверные учетные данные"
-// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Неверные учетные данные"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	start := time.Now()
