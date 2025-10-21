@@ -27,6 +27,6 @@ func New(logger *logger.Logger, repo *repository.Repository, token token.Manager
 		Auth:   NewAuth(logger, token, repo.PgRepository.Auth),
 		Bus:    NewBus(logger, repo.PgRepository.Bus),
 		BC:     NewBusCategory(logger, repo.PgRepository.Bc),
-		BS:     NewBusStatus(logger, repo.PgRepository),
+		BS:     NewBusStatus(logger, repo.PgRepository.Bs),
 	}
 }

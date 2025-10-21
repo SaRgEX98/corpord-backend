@@ -63,6 +63,13 @@ type BusStatus struct {
 	Name string `json:"name" db:"name"`
 }
 
+func (bs *BusStatus) Validate() error {
+	if &bs.ID == nil && &bs.Name == nil {
+		return errors.New("at least one field must be updated")
+	}
+	return nil
+}
+
 func (b *BusUpdate) Validate() error {
 	if b.LicensePlate == nil && b.Brand == nil && b.Capacity == nil && b.CategoryID == nil && b.StatusID == nil {
 		return errors.New("at least one field must be updated")
