@@ -266,6 +266,135 @@ paths:
       summary: Обновить категорию автобуса
       tags:
       - admin/bus/categories
+  /admin/bus/statuses:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую запись статуса автобуса. Доступно только администраторам
+      parameters:
+      - description: Данные статуса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.BusStatus'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Статус успешно создан
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен. Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать новый статус автобуса
+      tags:
+      - admin/bus/statuses
+  /admin/bus/statuses/{id}:
+    delete:
+      description: Удаляет статус автобуса по его идентификатору. Доступно только
+        администраторам
+      parameters:
+      - description: ID статуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Статус успешно удален
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен. Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Статус не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить статус автобуса
+      tags:
+      - admin/bus/statuses
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные статуса автобуса по его идентификатору. Доступно
+        только администраторам
+      parameters:
+      - description: ID статуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные статуса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.BusStatus'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Обновленные данные статуса
+          schema:
+            $ref: '#/definitions/model.BusStatus'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен. Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Статус не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Обновить статус автобуса
+      tags:
+      - admin/bus/statuses
   /admin/users:
     post:
       consumes:
@@ -648,6 +777,57 @@ paths:
       summary: Получить категорию по ID
       tags:
       - bus/categories
+  /bus/statuses:
+    get:
+      description: Возвращает список всех доступных статусов автобусов. Доступно всем
+        пользователям
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список статусов автобусов
+          schema:
+            items:
+              $ref: '#/definitions/model.BusStatus'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить все статусы автобусов
+      tags:
+      - bus/statuses
+  /bus/statuses/{id}:
+    get:
+      description: Возвращает данные статуса автобуса по его идентификатору
+      parameters:
+      - description: ID статуса
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные статуса
+          schema:
+            $ref: '#/definitions/model.BusStatus'
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Статус не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить статус автобуса по ID
+      tags:
+      - bus/statuses
   /users:
     get:
       description: Возвращает список всех зарегистрированных пользователей (только

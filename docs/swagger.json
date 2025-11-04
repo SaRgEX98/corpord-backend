@@ -228,6 +228,204 @@
                 }
             }
         },
+        "/admin/bus/statuses": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую запись статуса автобуса. Доступно только администраторам",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/bus/statuses"
+                ],
+                "summary": "Создать новый статус автобуса",
+                "parameters": [
+                    {
+                        "description": "Данные статуса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.BusStatus"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Статус успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен. Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/bus/statuses/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет данные статуса автобуса по его идентификатору. Доступно только администраторам",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/bus/statuses"
+                ],
+                "summary": "Обновить статус автобуса",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID статуса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Обновленные данные статуса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.BusStatus"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Обновленные данные статуса",
+                        "schema": {
+                            "$ref": "#/definitions/model.BusStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен. Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Статус не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Удаляет статус автобуса по его идентификатору. Доступно только администраторам",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/bus/statuses"
+                ],
+                "summary": "Удалить статус автобуса",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID статуса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Статус успешно удален"
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен. Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Статус не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "post": {
                 "security": [
@@ -802,6 +1000,82 @@
                     },
                     "404": {
                         "description": "Категория не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/bus/statuses": {
+            "get": {
+                "description": "Возвращает список всех доступных статусов автобусов. Доступно всем пользователям",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bus/statuses"
+                ],
+                "summary": "Получить все статусы автобусов",
+                "responses": {
+                    "200": {
+                        "description": "Список статусов автобусов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.BusStatus"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/bus/statuses/{id}": {
+            "get": {
+                "description": "Возвращает данные статуса автобуса по его идентификатору",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bus/statuses"
+                ],
+                "summary": "Получить статус автобуса по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID статуса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные статуса",
+                        "schema": {
+                            "$ref": "#/definitions/model.BusStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Статус не найден",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
