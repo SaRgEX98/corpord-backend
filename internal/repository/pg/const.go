@@ -5,4 +5,5 @@ const (
 	TableBus           = "bus"
 	TableBusCategories = "bus_categories"
 	TableBusStatuses   = "bus_statuses"
+	TableDriverStatus  = "driver_status"
 )
