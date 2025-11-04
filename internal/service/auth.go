@@ -86,24 +86,24 @@ func (s *auth) Login(ctx context.Context, credentials model.UserLogin) (string, 
 
 	if credentials.Email == "" || credentials.Password == "" {
 		s.logger.Warn("Login attempt with empty email or password")
-		return "", errors.New("email и пароль обязательны")
+		return "", ErrNoFields
 	}
 
 	u, err := s.authRepo.GetUserByEmail(ctx, credentials.Email)
 	if err != nil || u == nil {
 		s.logger.Warn("User not found", "email", credentials.Email)
-		return "", errors.New("неверный email или пароль")
+		return "", ErrInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(credentials.Password)); err != nil {
 		s.logger.Warn("Invalid password", "email", credentials.Email)
-		return "", errors.New("неверный email или пароль")
+		return "", ErrInvalidCredentials
 	}
 
 	t, err := s.token.Generate(u.ID, u.Email, u.Role)
 	if err != nil {
 		s.logger.Error("Failed to generate token", "error", err, "user_id", u.ID)
-		return "", errors.New("ошибка при аутентификации")
+		return "", err
 	}
 	s.logger.Info("User logged in successfully", "user_id", u.ID, "email", u.Email)
 	return t, nil
