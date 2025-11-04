@@ -45,6 +45,11 @@ func (h *DriverStatus) ById(c *gin.Context) {
 		h.logger.Error(err)
 		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
 	}
+	if output.Name == "" {
+		h.logger.Error(err)
+		c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrNotFound.Message)
+		return
+	}
 	c.JSON(http.StatusOK, output)
 }
 
@@ -61,13 +66,21 @@ func (h *DriverStatus) Create(c *gin.Context) {
 		h.logger.Error(err)
 		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
 	}
-	c.JSON(http.StatusOK, status)
+	c.JSON(http.StatusOK, apperrors.SuccessResponse{
+		Message: "created",
+	})
 }
 
 func (h *DriverStatus) Update(c *gin.Context) {
 	h.logger.Debug("Update")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		h.logger.Error(err)
+		c.JSON(http.StatusBadRequest, apperrors.ErrBadRequest)
+	}
 	var status model.DriverStatus
-	err := c.ShouldBindJSON(&status)
+	status.ID = id
+	err = c.ShouldBindJSON(&status)
 	if err != nil {
 		h.logger.Error(err)
 		c.AbortWithError(apperrors.ErrBadRequest.Status, err)

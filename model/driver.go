@@ -13,7 +13,7 @@ type Driver struct {
 
 type DriverStatus struct {
 	ID   int    `json:"id" db:"id"`
-	Name string `jsong:"name" db:"name"`
+	Name string `json:"name" db:"name"`
 }
 
 type DriverOutput struct {
