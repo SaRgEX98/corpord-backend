@@ -13,6 +13,7 @@ type PostgresRepository struct {
 	Bc     BusCategory
 	Bs     BusStatus
 	Ds     DriverStatus
+	Driver Driver
 }
 
 func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
