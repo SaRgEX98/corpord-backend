@@ -20,6 +20,7 @@ type handler struct {
 	bc     *BusCategoryHandler
 	bs     *BusStatusHandler
 	ds     *DriverStatus
+	driver *Driver
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
@@ -36,6 +37,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		bc:     NewBusCategory(logger, s.BC),
 		bs:     NewBusStatus(logger, s.BS),
 		ds:     NewDriverStatus(logger, s.DS),
+		driver: NewDriver(logger, s.Driver),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
@@ -78,6 +80,8 @@ func (h *handler) InitRoutes() *gin.Engine {
 		}
 		driver := v1.Group("/driver")
 		{
+			driver.GET("/", h.driver.All)
+			driver.GET("/:id", h.driver.ByID)
 			driverStatus := driver.Group("status")
 			{
 				driverStatus.GET("/", h.ds.All)
@@ -99,7 +103,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 					users.PUT("/:id", h.user.Update) // Update user
 
 				}
-				adminBus := admin.Group("/adminBus")
+				adminBus := admin.Group("/bus")
 				{
 					adminBus.POST("/", h.bus.CreateBus)
 					adminBus.PUT("/:id", h.bus.UpdateBus)
@@ -119,6 +123,9 @@ func (h *handler) InitRoutes() *gin.Engine {
 				}
 				adminDriver := admin.Group("/driver")
 				{
+					adminDriver.POST("/", h.driver.Create)
+					adminDriver.PUT("/:id", h.driver.Update)
+					adminDriver.DELETE("/:id", h.driver.Delete)
 					status := adminDriver.Group("/status")
 					{
 						status.POST("/", h.ds.Create)

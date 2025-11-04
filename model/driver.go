@@ -8,7 +8,7 @@ type Driver struct {
 	LastName    string       `json:"last_name" db:"last_name"`
 	MiddleName  string       `json:"middle_name" db:"middle_name"`
 	PhoneNumber string       `json:"phone_number" db:"phone_number"`
-	Status      DriverStatus `json:"status" db:"status"`
+	Status      DriverStatus `json:"status"`
 }
 
 type DriverStatus struct {
@@ -23,6 +23,15 @@ type DriverOutput struct {
 	MiddleName  string `json:"middle_name" db:"middle_name"`
 	PhoneNumber string `json:"phone_number" db:"phone_number"`
 	Status      string `json:"status" db:"driver_status"`
+}
+
+type DriverInput struct {
+	ID          int    `json:"-,omitempty" db:"id"`
+	FirstName   string `json:"first_name" db:"first_name"`
+	LastName    string `json:"last_name" db:"last_name"`
+	MiddleName  string `json:"middle_name" db:"middle_name"`
+	PhoneNumber string `json:"phone_number" db:"phone_number"`
+	Status      int    `json:"status" db:"status"`
 }
 
 func (ds *DriverStatus) Validate() error {

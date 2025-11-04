@@ -8,10 +8,10 @@ import (
 )
 
 type Driver interface {
-	All(ctx context.Context) ([]model.Driver, error)
-	ByID(ctx context.Context, id int) (*model.Driver, error)
-	Create(ctx context.Context, driver model.Driver) (model.Driver, error)
-	Update(ctx context.Context, driver model.Driver) (model.Driver, error)
+	All(ctx context.Context) ([]model.DriverOutput, error)
+	ByID(ctx context.Context, id int) (model.DriverOutput, error)
+	Create(ctx context.Context, driver model.DriverInput) error
+	Update(ctx context.Context, driver model.DriverInput) error
 	Delete(ctx context.Context, id int) error
 }
 
@@ -27,19 +27,19 @@ func NewDriver(logger *logger.Logger, repo pg.Driver) Driver {
 	}
 }
 
-func (d *driver) All(ctx context.Context) ([]model.Driver, error) {
+func (d *driver) All(ctx context.Context) ([]model.DriverOutput, error) {
 	return d.repo.All(ctx)
 }
 
-func (d *driver) ByID(ctx context.Context, id int) (*model.Driver, error) {
+func (d *driver) ByID(ctx context.Context, id int) (model.DriverOutput, error) {
 	return d.repo.ByID(ctx, id)
 }
 
-func (d *driver) Create(ctx context.Context, driver model.Driver) (model.Driver, error) {
+func (d *driver) Create(ctx context.Context, driver model.DriverInput) error {
 	return d.repo.Create(ctx, driver)
 }
 
-func (d *driver) Update(ctx context.Context, driver model.Driver) (model.Driver, error) {
+func (d *driver) Update(ctx context.Context, driver model.DriverInput) error {
 	return d.repo.Update(ctx, driver)
 }
 
