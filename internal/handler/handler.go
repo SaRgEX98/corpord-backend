@@ -19,6 +19,7 @@ type handler struct {
 	bus    *BusHandler
 	bc     *BusCategoryHandler
 	bs     *BusStatusHandler
+	ds     *DriverStatus
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
@@ -34,6 +35,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		bus:    NewBus(logger, s.Bus),
 		bc:     NewBusCategory(logger, s.BC),
 		bs:     NewBusStatus(logger, s.BS),
+		ds:     NewDriverStatus(logger, s.DS),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
@@ -74,6 +76,14 @@ func (h *handler) InitRoutes() *gin.Engine {
 				busStatus.GET("/:id", h.bs.ByID)
 			}
 		}
+		driver := v1.Group("/driver")
+		{
+			driverStatus := driver.Group("status")
+			{
+				driverStatus.GET("/", h.ds.All)
+				driverStatus.GET("/:id", h.ds.ById)
+			}
+		}
 		// Protected routes - require valid JWT token
 		authorized := v1.Group("")
 		authorized.Use(middleware.AuthMiddleware(h.logger, h.t))
@@ -89,22 +99,31 @@ func (h *handler) InitRoutes() *gin.Engine {
 					users.PUT("/:id", h.user.Update) // Update user
 
 				}
-				bus := admin.Group("/bus")
+				adminBus := admin.Group("/adminBus")
 				{
-					bus.POST("/", h.bus.CreateBus)
-					bus.PUT("/:id", h.bus.UpdateBus)
-					bus.DELETE("/:id", h.bus.DeleteBus)
-					categories := bus.Group("/categories")
+					adminBus.POST("/", h.bus.CreateBus)
+					adminBus.PUT("/:id", h.bus.UpdateBus)
+					adminBus.DELETE("/:id", h.bus.DeleteBus)
+					categories := adminBus.Group("/categories")
 					{
 						categories.POST("/", h.bc.Create)
 						categories.DELETE("/:id", h.bc.Delete)
 						categories.PUT("/:id", h.bc.Update)
 					}
-					status := bus.Group("/statuses")
+					status := adminBus.Group("/statuses")
 					{
 						status.POST("/", h.bs.Create)
 						status.PUT("/:id", h.bs.Update)
 						status.DELETE("/:id", h.bs.Delete)
+					}
+				}
+				adminDriver := admin.Group("/driver")
+				{
+					status := adminDriver.Group("/status")
+					{
+						status.POST("/", h.ds.Create)
+						status.PUT("/:id", h.ds.Update)
+						status.DELETE("/:id", h.ds.Delete)
 					}
 				}
 			}
