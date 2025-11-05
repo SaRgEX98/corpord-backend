@@ -31,7 +31,7 @@ func NewBus(logger *logger.Logger, bus service.Bus) *BusHandler {
 // @Produce json
 // @Success 200 {array} model.Bus "Список автобусов"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /api/v1/buses [get]
+// @Router /buses [get]
 func (h *BusHandler) GetAllBuses(c *gin.Context) {
 	buses, err := h.bus.GetAllBuses(c.Request.Context())
 	if err != nil {
@@ -82,7 +82,6 @@ func (h *BusHandler) GetBus(c *gin.Context) {
 	c.JSON(http.StatusOK, bus)
 }
 
-// @Router /api/v1/admin/bus [post]
 // CreateBus creates a new bus (Admin only)
 // @Summary Создать новый автобус (только админ)
 // @Description Создает новую запись об автобусе (требуются права администратора)
@@ -96,7 +95,7 @@ func (h *BusHandler) GetBus(c *gin.Context) {
 // @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
 // @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
 // @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
-// @Router /api/v1/admin/bus [post]
+// @Router /admin/bus [post]
 func (h *BusHandler) CreateBus(c *gin.Context) {
 	var bus model.Bus
 	if err := c.ShouldBindJSON(&bus); err != nil {
@@ -132,7 +131,7 @@ func (h *BusHandler) CreateBus(c *gin.Context) {
 // @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
 // @Failure 404 {object} apperrors.ErrorResponse "Автобус не найден"
 // @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
-// @Router /api/v1/admin/bus/{id} [put]
+// @Router /admin/bus/{id} [put]
 func (h *BusHandler) UpdateBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -178,7 +177,7 @@ func (h *BusHandler) UpdateBus(c *gin.Context) {
 // @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
 // @Failure 404 {object} apperrors.ErrorResponse "Автобус не найден"
 // @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
-// @Router /api/v1/admin/bus/{id} [delete]
+// @Router /admin/bus/{id} [delete]
 func (h *BusHandler) DeleteBus(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -188,7 +187,7 @@ func (h *BusHandler) DeleteBus(c *gin.Context) {
 		return
 	}
 
-	if err := h.bus.DeleteBus(c.Request.Context(), id); err != nil {
+	if err = h.bus.DeleteBus(c.Request.Context(), id); err != nil {
 		h.logger.Errorf("failed to delete bus %d: %v", id, err)
 		if errors.Is(err, service.ErrBusNotFound) {
 			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: "Автобус не найден"})

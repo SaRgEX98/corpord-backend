@@ -24,6 +24,69 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/bus": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую запись об автобусе (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/bus"
+                ],
+                "summary": "Создать новый автобус (только админ)",
+                "parameters": [
+                    {
+                        "description": "Данные автобуса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Bus"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Автобус успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/bus/categories": {
             "post": {
                 "security": [
@@ -432,209 +495,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/users": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Создает новую учетную запись пользователя (только для администраторов)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admin"
-                ],
-                "summary": "Создать нового пользователя",
-                "parameters": [
-                    {
-                        "description": "Данные пользователя",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.UserCreate"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Пользователь успешно создан",
-                        "schema": {
-                            "$ref": "#/definitions/model.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректные данные",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Пользователь с таким email уже существует",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/admin/users/{id}": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Обновляет информацию о пользователе по ID (только для администраторов)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admin"
-                ],
-                "summary": "Обновить данные пользователя",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID пользователя",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Обновленные данные пользователя",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.UserUpdate"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Данные пользователя обновлены",
-                        "schema": {
-                            "$ref": "#/definitions/model.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректные данные",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Пользователь не найден",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/bus": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Создает новую запись об автобусе (требуются права администратора)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admin/bus"
-                ],
-                "summary": "Создать новый автобус (только админ)",
-                "parameters": [
-                    {
-                        "description": "Данные автобуса",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.Bus"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Автобус успешно создан",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.SuccessResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректные данные",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/bus/{id}": {
+        "/admin/bus/{id}": {
             "put": {
                 "security": [
                     {
@@ -769,24 +630,471 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/buses": {
-            "get": {
-                "description": "Возвращает список всех автобусов в системе",
+        "/admin/driver": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую запись о водителе (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "buses"
+                    "admin/driver"
                 ],
-                "summary": "Получить список всех автобусов",
+                "summary": "Создать нового водителя (только админ)",
+                "parameters": [
+                    {
+                        "description": "Данные водителя",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.DriverInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Водитель успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/driver/status": {
+            "post": {
+                "description": "Создание статуса водителя",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/driver/status"
+                ],
+                "summary": "Создать статус водителя",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID статуса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Список автобусов",
+                        "description": "Данные статуса",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Bus"
-                            }
+                            "$ref": "#/definitions/model.DriverStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Категория не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/driver/status/{id}": {
+            "put": {
+                "description": "Изменение статуса по ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/driver/status"
+                ],
+                "summary": "Изменить статус по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID статуса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные статуса",
+                        "schema": {
+                            "$ref": "#/definitions/model.DriverStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Категория не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Удаление статуса водителя по ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/driver/status"
+                ],
+                "summary": "Удалить статус водителя",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID статуса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Данные статуса",
+                        "schema": {
+                            "$ref": "#/definitions/model.DriverStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Категория не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/driver/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет информацию о водителе по ID (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/driver"
+                ],
+                "summary": "Обновить данные водителя (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID водителя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Обновленные данные водителя",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.DriverInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные водителя обновлены",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Водитель не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Удаляет запись о водителе по ID (требуются права администратора)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/driver"
+                ],
+                "summary": "Удалить водителя (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID водителя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Водитель успешно удален"
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Водитель не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую учетную запись пользователя (только для администраторов)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Создать нового пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные пользователя",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Пользователь успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Пользователь с таким email уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет информацию о пользователе по ID (только для администраторов)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Обновить данные пользователя",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Обновленные данные пользователя",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные пользователя обновлены",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
@@ -974,18 +1282,18 @@ const docTemplate = `{
         },
         "/bus/categories/{id}": {
             "get": {
-                "description": "Возвращает информацию о категории автобуса по её идентификатору. Доступно всем пользователям",
+                "description": "Возвращает информацию о статусе водителя по его идентификатору. Доступно всем пользователям",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "bus/categories"
+                    "driver/status"
                 ],
-                "summary": "Получить категорию по ID",
+                "summary": "Получить статус водителя по ID",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "ID категории",
+                        "description": "ID статуса",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -993,9 +1301,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные категории",
+                        "description": "Данные статуса",
                         "schema": {
-                            "$ref": "#/definitions/model.BusCategory"
+                            "$ref": "#/definitions/model.DriverStatus"
                         }
                     },
                     "400": {
@@ -1088,6 +1396,134 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/buses": {
+            "get": {
+                "description": "Возвращает список всех автобусов в системе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buses"
+                ],
+                "summary": "Получить список всех автобусов",
+                "responses": {
+                    "200": {
+                        "description": "Список автобусов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Bus"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/driver": {
+            "get": {
+                "description": "Возвращает список всех водителей в системе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drivers"
+                ],
+                "summary": "Получить список всех водителей",
+                "responses": {
+                    "200": {
+                        "description": "Список водителей",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Driver"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/driver/status": {
+            "get": {
+                "description": "Возвращает список всех статусов водителя. Доступно всем пользователям",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "driver/status"
+                ],
+                "summary": "Получить все статусы водителя",
+                "responses": {
+                    "200": {
+                        "description": "Список статусов водителя",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.DriverStatus"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ничего не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/driver/{id}": {
+            "get": {
+                "description": "Возвращает информацию о водителе по его идентификатору",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "drivers"
+                ],
+                "summary": "Получить водителя по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID водителя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные водителя",
+                        "schema": {
+                            "$ref": "#/definitions/model.Driver"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Водитель не найден",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1356,6 +1792,60 @@ const docTemplate = `{
                 },
                 "status_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.Driver": {
+            "type": "object",
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "middle_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.DriverStatus"
+                }
+            }
+        },
+        "model.DriverInput": {
+            "type": "object",
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "middle_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.DriverStatus": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

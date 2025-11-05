@@ -22,6 +22,14 @@ func NewDriver(logger *logger.Logger, s service.Driver) *Driver {
 	}
 }
 
+// All retrieves a list of all drivers
+// @Summary Получить список всех водителей
+// @Description Возвращает список всех водителей в системе
+// @Tags drivers
+// @Produce json
+// @Success 200 {array} model.Driver "Список водителей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /driver [get]
 func (h *Driver) All(c *gin.Context) {
 	drivers, err := h.s.All(c.Request.Context())
 	if err != nil {
@@ -32,6 +40,16 @@ func (h *Driver) All(c *gin.Context) {
 	c.JSON(http.StatusOK, drivers)
 }
 
+// ByID retrieves a single driver by ID
+// @Summary Получить водителя по ID
+// @Description Возвращает информацию о водителе по его идентификатору
+// @Tags drivers
+// @Produce json
+// @Param id path int true "ID водителя"
+// @Success 200 {object} model.Driver "Данные водителя"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
+// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
+// @Router /driver/{id} [get]
 func (h *Driver) ByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -48,6 +66,20 @@ func (h *Driver) ByID(c *gin.Context) {
 	c.JSON(http.StatusOK, driver)
 }
 
+// Create creates a new driver (Admin only)
+// @Summary Создать нового водителя (только админ)
+// @Description Создает новую запись о водителе (требуются права администратора)
+// @Security Bearer
+// @Tags admin/driver
+// @Accept json
+// @Produce json
+// @Param input body model.DriverInput true "Данные водителя"
+// @Success 201 {object} apperrors.SuccessResponse "Водитель успешно создан"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Router /admin/driver [post]
 func (h *Driver) Create(c *gin.Context) {
 	var driver model.DriverInput
 	err := c.ShouldBind(&driver)
@@ -66,6 +98,22 @@ func (h *Driver) Create(c *gin.Context) {
 	})
 }
 
+// Update updates an existing driver (Admin only)
+// @Summary Обновить данные водителя (только админ)
+// @Description Обновляет информацию о водителе по ID (требуются права администратора)
+// @Security Bearer
+// @Tags admin/driver
+// @Accept json
+// @Produce json
+// @Param id path int true "ID водителя"
+// @Param input body model.DriverInput true "Обновленные данные водителя"
+// @Success 200 {object} apperrors.SuccessResponse "Данные водителя обновлены"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
+// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Router /admin/driver/{id} [put]
 func (h *Driver) Update(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -94,6 +142,20 @@ func (h *Driver) Update(c *gin.Context) {
 	})
 }
 
+// Delete removes a driver by ID (Admin only)
+// @Summary Удалить водителя (только админ)
+// @Description Удаляет запись о водителе по ID (требуются права администратора)
+// @Security Bearer
+// @Tags admin/driver
+// @Produce json
+// @Param id path int true "ID водителя"
+// @Success 204 "Водитель успешно удален"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
+// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
+// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Router /admin/driver/{id} [delete]
 func (h *Driver) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
