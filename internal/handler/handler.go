@@ -14,37 +14,41 @@ import (
 )
 
 type handler struct {
-	user   *UserHandler
-	auth   *AuthHandler
-	bus    *BusHandler
-	bc     *BusCategoryHandler
-	bs     *BusStatusHandler
-	ds     *DriverStatus
-	driver *Driver
-	trip   *Trip
-	logger *logger.Logger
-	s      *service.Service
-	r      *gin.Engine
-	cfg    *config.Config
-	t      token.Manager
+	user     *UserHandler
+	auth     *AuthHandler
+	bus      *BusHandler
+	bc       *BusCategoryHandler
+	bs       *BusStatusHandler
+	ds       *DriverStatus
+	driver   *Driver
+	trip     *Trip
+	tripStop TripStop
+	stop     Stop
+	logger   *logger.Logger
+	s        *service.Service
+	r        *gin.Engine
+	cfg      *config.Config
+	t        token.Manager
 }
 
 // New creates a new handler instance with all dependencies
 func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager) Handler {
 	return &handler{
-		user:   NewUser(logger, s.User),
-		auth:   NewAuthHandler(s.Auth, logger),
-		bus:    NewBus(logger, s.Bus),
-		bc:     NewBusCategory(logger, s.BC),
-		bs:     NewBusStatus(logger, s.BS),
-		ds:     NewDriverStatus(logger, s.DS),
-		driver: NewDriver(logger, s.Driver),
-		trip:   NewTrip(logger, s.Trip),
-		logger: logger,
-		s:      s,
-		r:      gin.Default(),
-		cfg:    cfg,
-		t:      t,
+		user:     NewUser(logger, s.User),
+		auth:     NewAuthHandler(s.Auth, logger),
+		bus:      NewBus(logger, s.Bus),
+		bc:       NewBusCategory(logger, s.BC),
+		bs:       NewBusStatus(logger, s.BS),
+		ds:       NewDriverStatus(logger, s.DS),
+		driver:   NewDriver(logger, s.Driver),
+		trip:     NewTrip(logger, s.Trip),
+		tripStop: NewTripStop(logger, s.TripStop),
+		stop:     NewStop(logger, s.Stop),
+		logger:   logger,
+		s:        s,
+		r:        gin.Default(),
+		cfg:      cfg,
+		t:        t,
 	}
 }
 
@@ -80,10 +84,20 @@ func (h *handler) InitRoutes() *gin.Engine {
 				busStatus.GET("/:id", h.bs.ByID)
 			}
 		}
+		s := v1.Group("/stops")
+		{
+			s.GET("/", h.stop.All)
+			s.GET("/:id", h.stop.ByID)
+		}
 		trip := v1.Group("/trips")
 		{
 			trip.GET("/", h.trip.All)
 			trip.GET("/:id", h.trip.ByID)
+		}
+		ts := v1.Group("/trip_stops")
+		{
+			ts.GET("/", h.tripStop.All)
+			ts.GET("/:id", h.tripStop.ByID)
 		}
 		driver := v1.Group("/driver")
 		{
@@ -145,6 +159,18 @@ func (h *handler) InitRoutes() *gin.Engine {
 					adminTrip.POST("/", h.trip.Create)
 					adminTrip.PUT("/:id", h.trip.Update)
 					adminTrip.DELETE("/:id", h.trip.Delete)
+				}
+				adminTripStop := admin.Group("/trip_stop")
+				{
+					adminTripStop.POST("/", h.tripStop.Create)
+					adminTripStop.PUT("/:id", h.tripStop.Update)
+					adminTripStop.DELETE("/:id", h.tripStop.Delete)
+				}
+				adminStop := admin.Group("/stops")
+				{
+					adminStop.POST("/", h.stop.Create)
+					adminStop.PUT("/:id", h.stop.Update)
+					adminStop.DELETE("/:id", h.stop.Delete)
 				}
 			}
 
