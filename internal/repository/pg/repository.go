@@ -14,6 +14,7 @@ type PostgresRepository struct {
 	Bs     BusStatus
 	Ds     DriverStatus
 	Driver Driver
+	Trip   Trip
 }
 
 func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
@@ -26,5 +27,6 @@ func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
 		Bs:     NewBusStatus(logger, qb),
 		Ds:     NewDriverStatus(logger, qb),
 		Driver: NewDriver(logger, qb),
+		Trip:   NewTrip(logger, qb),
 	}
 }

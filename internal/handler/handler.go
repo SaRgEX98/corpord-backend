@@ -21,6 +21,7 @@ type handler struct {
 	bs     *BusStatusHandler
 	ds     *DriverStatus
 	driver *Driver
+	trip   *Trip
 	logger *logger.Logger
 	s      *service.Service
 	r      *gin.Engine
@@ -38,6 +39,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		bs:     NewBusStatus(logger, s.BS),
 		ds:     NewDriverStatus(logger, s.DS),
 		driver: NewDriver(logger, s.Driver),
+		trip:   NewTrip(logger, s.Trip),
 		logger: logger,
 		s:      s,
 		r:      gin.Default(),
@@ -77,6 +79,11 @@ func (h *handler) InitRoutes() *gin.Engine {
 				busStatus.GET("/", h.bs.All)
 				busStatus.GET("/:id", h.bs.ByID)
 			}
+		}
+		trip := v1.Group("/trips")
+		{
+			trip.GET("/", h.trip.All)
+			trip.GET("/:id", h.trip.ByID)
 		}
 		driver := v1.Group("/driver")
 		{
@@ -132,6 +139,12 @@ func (h *handler) InitRoutes() *gin.Engine {
 						status.PUT("/:id", h.ds.Update)
 						status.DELETE("/:id", h.ds.Delete)
 					}
+				}
+				adminTrip := admin.Group("/trips")
+				{
+					adminTrip.POST("/", h.trip.Create)
+					adminTrip.PUT("/:id", h.trip.Update)
+					adminTrip.DELETE("/:id", h.trip.Delete)
 				}
 			}
 

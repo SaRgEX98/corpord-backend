@@ -104,6 +104,52 @@ definitions:
       access_token:
         type: string
     type: object
+  model.Trip:
+    properties:
+      base_price:
+        type: integer
+      bus_id:
+        type: integer
+      created_at:
+        type: string
+      driver_id:
+        type: integer
+      end_time:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - base_price
+    - bus_id
+    - driver_id
+    - end_time
+    - start_time
+    type: object
+  model.TripUpdate:
+    properties:
+      base_price:
+        type: integer
+      bus_id:
+        type: integer
+      created_at:
+        type: string
+      driver_id:
+        type: integer
+      end_time:
+        type: string
+      id:
+        type: integer
+      start_time:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   model.UserCreate:
     properties:
       email:
@@ -776,6 +822,133 @@ paths:
       summary: Изменить статус по ID
       tags:
       - admin/driver/status
+  /admin/trips:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую запись о маршруте (требуются права администратора)
+      parameters:
+      - description: Данные маршрута
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Trip'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Маршрут успешно создан
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать новый маршрут (только админ)
+      tags:
+      - admin/trips
+  /admin/trips/{id}:
+    delete:
+      description: Удаляет запись о маршруте по ID (требуются права администратора)
+      parameters:
+      - description: ID маршрута
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Маршрут успешно удален
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Маршрут не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить маршрут (только админ)
+      tags:
+      - admin/trips
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию о маршруте по ID (требуются права администратора)
+      parameters:
+      - description: ID маршрута
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные маршрута
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.TripUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные маршрута обновлены
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Водитель не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Обновить данные о маршруте (только админ)
+      tags:
+      - admin/trips
   /admin/users:
     post:
       consumes:
@@ -1147,6 +1320,48 @@ paths:
       summary: Получить все статусы водителя
       tags:
       - driver/status
+  /trips:
+    get:
+      description: Возвращает список всех маршрутов в системе
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список маршрутов
+          schema:
+            items:
+              $ref: '#/definitions/model.Trip'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список всех маршрутов
+      tags:
+      - trips
+  /trips/{id}:
+    get:
+      description: Возвращает маршрут в системе по ID
+      parameters:
+      - description: ID маршрута
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Модель пути
+          schema:
+            $ref: '#/definitions/model.Trip'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить маршрут
+      tags:
+      - trips
   /users:
     get:
       description: Возвращает список всех зарегистрированных пользователей (только

@@ -7,4 +7,5 @@ const (
 	TableBusStatuses   = "bus_statuses"
 	TableDriver        = "drivers"
 	TableDriverStatus  = "driver_status"
+	TableTrip          = "trips"
 )

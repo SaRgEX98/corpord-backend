@@ -967,6 +967,204 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/trips": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую запись о маршруте (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/trips"
+                ],
+                "summary": "Создать новый маршрут (только админ)",
+                "parameters": [
+                    {
+                        "description": "Данные маршрута",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Trip"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Маршрут успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/trips/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет информацию о маршруте по ID (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/trips"
+                ],
+                "summary": "Обновить данные о маршруте (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID маршрута",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Обновленные данные маршрута",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TripUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные маршрута обновлены",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Водитель не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Удаляет запись о маршруте по ID (требуются права администратора)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/trips"
+                ],
+                "summary": "Удалить маршрут (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID маршрута",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Маршрут успешно удален"
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Маршрут не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "post": {
                 "security": [
@@ -1531,6 +1729,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/trips": {
+            "get": {
+                "description": "Возвращает список всех маршрутов в системе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trips"
+                ],
+                "summary": "Получить список всех маршрутов",
+                "responses": {
+                    "200": {
+                        "description": "Список маршрутов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Trip"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trips/{id}": {
+            "get": {
+                "description": "Возвращает маршрут в системе по ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trips"
+                ],
+                "summary": "Получить маршрут",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID маршрута",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Модель пути",
+                        "schema": {
+                            "$ref": "#/definitions/model.Trip"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "security": [
@@ -1853,6 +2115,74 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "access_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Trip": {
+            "type": "object",
+            "required": [
+                "base_price",
+                "bus_id",
+                "driver_id",
+                "end_time",
+                "start_time"
+            ],
+            "properties": {
+                "base_price": {
+                    "type": "integer"
+                },
+                "bus_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "driver_id": {
+                    "type": "integer"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TripUpdate": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "integer"
+                },
+                "bus_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "driver_id": {
+                    "type": "integer"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
