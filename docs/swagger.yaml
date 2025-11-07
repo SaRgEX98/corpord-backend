@@ -99,6 +99,34 @@ definitions:
       name:
         type: string
     type: object
+  model.Stop:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.StopUpdate:
+    properties:
+      address:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+    type: object
   model.TokenResponse:
     properties:
       access_token:
@@ -128,6 +156,38 @@ definitions:
     - driver_id
     - end_time
     - start_time
+    type: object
+  model.TripStop:
+    properties:
+      arrival_time:
+        type: string
+      departure_time:
+        type: string
+      id:
+        type: integer
+      price_to_next:
+        type: integer
+      stop_id:
+        type: integer
+      stop_order:
+        type: integer
+      trip_id:
+        type: integer
+    type: object
+  model.TripStopUpdate:
+    properties:
+      arrival_time:
+        type: string
+      departure_time:
+        type: string
+      price_to_next:
+        type: integer
+      stop_id:
+        type: integer
+      stop_order:
+        type: integer
+      trip_id:
+        type: integer
     type: object
   model.TripUpdate:
     properties:
@@ -822,6 +882,260 @@ paths:
       summary: Изменить статус по ID
       tags:
       - admin/driver/status
+  /admin/stops:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую запись остановки (требуются права администратора)
+      parameters:
+      - description: Данные остановки
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.TripStop'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Остановка успешно создана
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать новую остановки (только админ)
+      tags:
+      - admin/stops
+  /admin/stops/{id}:
+    delete:
+      description: Удаляет запись об остановке по ID (требуются права администратора)
+      parameters:
+      - description: ID остановки
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Остановка успешно удалена
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Остановка не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить остановки (только админ)
+      tags:
+      - admin/stops
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию об остановке по ID (требуются права администратора)
+      parameters:
+      - description: ID остановки
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные остановки
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.StopUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные остановки обновлены
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Водитель не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Обновить данные об остановке (только админ)
+      tags:
+      - admin/stops
+  /admin/trip_stops:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую запись остановки (требуются права администратора)
+      parameters:
+      - description: Данные остановки
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.TripStop'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Остановка успешно создана
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать новую остановки (только админ)
+      tags:
+      - admin/trip_stops
+  /admin/trip_stops/{id}:
+    delete:
+      description: Удаляет запись об остановке по ID (требуются права администратора)
+      parameters:
+      - description: ID остановки
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Остановка успешно удалена
+        "400":
+          description: Некорректный ID
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Остановка не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить остановки (только админ)
+      tags:
+      - admin/trip_stops
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию об остановке по ID (требуются права администратора)
+      parameters:
+      - description: ID остановки
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Обновленные данные остановки
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.TripStopUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Данные остановки обновлены
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Доступ запрещен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Водитель не найден
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Обновить данные об остановки (только админ)
+      tags:
+      - admin/trip_stops
   /admin/trips:
     post:
       consumes:
@@ -1320,6 +1634,86 @@ paths:
       summary: Получить все статусы водителя
       tags:
       - driver/status
+  /stops:
+    get:
+      description: Возвращает все остановки в системе
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Модель остановок
+          schema:
+            $ref: '#/definitions/model.Stop'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить все остановки
+      tags:
+      - stops
+  /stops/{id}:
+    get:
+      description: Возвращает остановку по ID
+      parameters:
+      - description: ID остановки
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Модель пути
+          schema:
+            $ref: '#/definitions/model.TripStop'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить остановку
+      tags:
+      - stop
+  /trip_stops:
+    get:
+      description: Возвращает все остановки в системе
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Модель остановок
+          schema:
+            $ref: '#/definitions/model.TripStop'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить все остановки
+      tags:
+      - trip_stops
+  /trip_stops/{id}:
+    get:
+      description: Возвращает остановку по ID
+      parameters:
+      - description: ID остановки
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Модель пути
+          schema:
+            $ref: '#/definitions/model.TripStop'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить остановку
+      tags:
+      - trip_stops
   /trips:
     get:
       description: Возвращает список всех маршрутов в системе

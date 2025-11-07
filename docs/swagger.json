@@ -961,6 +961,402 @@
                 }
             }
         },
+        "/admin/stops": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую запись остановки (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/stops"
+                ],
+                "summary": "Создать новую остановки (только админ)",
+                "parameters": [
+                    {
+                        "description": "Данные остановки",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TripStop"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Остановка успешно создана",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/stops/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет информацию об остановке по ID (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/stops"
+                ],
+                "summary": "Обновить данные об остановке (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID остановки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Обновленные данные остановки",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.StopUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные остановки обновлены",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Водитель не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Удаляет запись об остановке по ID (требуются права администратора)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/stops"
+                ],
+                "summary": "Удалить остановки (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID остановки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Остановка успешно удалена"
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Остановка не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/trip_stops": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает новую запись остановки (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/trip_stops"
+                ],
+                "summary": "Создать новую остановки (только админ)",
+                "parameters": [
+                    {
+                        "description": "Данные остановки",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TripStop"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Остановка успешно создана",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/trip_stops/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет информацию об остановке по ID (требуются права администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/trip_stops"
+                ],
+                "summary": "Обновить данные об остановки (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID остановки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Обновленные данные остановки",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TripStopUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Данные остановки обновлены",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Водитель не найден",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Удаляет запись об остановке по ID (требуются права администратора)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/trip_stops"
+                ],
+                "summary": "Удалить остановки (только админ)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID остановки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Остановка успешно удалена"
+                    },
+                    "400": {
+                        "description": "Некорректный ID",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Остановка не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/trips": {
             "post": {
                 "security": [
@@ -1723,6 +2119,128 @@
                 }
             }
         },
+        "/stops": {
+            "get": {
+                "description": "Возвращает все остановки в системе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stops"
+                ],
+                "summary": "Получить все остановки",
+                "responses": {
+                    "200": {
+                        "description": "Модель остановок",
+                        "schema": {
+                            "$ref": "#/definitions/model.Stop"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/stops/{id}": {
+            "get": {
+                "description": "Возвращает остановку по ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stop"
+                ],
+                "summary": "Получить остановку",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID остановки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Модель пути",
+                        "schema": {
+                            "$ref": "#/definitions/model.TripStop"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trip_stops": {
+            "get": {
+                "description": "Возвращает все остановки в системе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trip_stops"
+                ],
+                "summary": "Получить все остановки",
+                "responses": {
+                    "200": {
+                        "description": "Модель остановок",
+                        "schema": {
+                            "$ref": "#/definitions/model.TripStop"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trip_stops/{id}": {
+            "get": {
+                "description": "Возвращает остановку по ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trip_stops"
+                ],
+                "summary": "Получить остановку",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID остановки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Модель пути",
+                        "schema": {
+                            "$ref": "#/definitions/model.TripStop"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/trips": {
             "get": {
                 "description": "Возвращает список всех маршрутов в системе",
@@ -2105,6 +2623,49 @@
                 }
             }
         },
+        "model.Stop": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StopUpdate": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "model.TokenResponse": {
             "type": "object",
             "properties": {
@@ -2146,6 +2707,55 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "model.TripStop": {
+            "type": "object",
+            "properties": {
+                "arrival_time": {
+                    "type": "string"
+                },
+                "departure_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "price_to_next": {
+                    "type": "integer"
+                },
+                "stop_id": {
+                    "type": "integer"
+                },
+                "stop_order": {
+                    "type": "integer"
+                },
+                "trip_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.TripStopUpdate": {
+            "type": "object",
+            "properties": {
+                "arrival_time": {
+                    "type": "string"
+                },
+                "departure_time": {
+                    "type": "string"
+                },
+                "price_to_next": {
+                    "type": "integer"
+                },
+                "stop_id": {
+                    "type": "integer"
+                },
+                "stop_order": {
+                    "type": "integer"
+                },
+                "trip_id": {
+                    "type": "integer"
                 }
             }
         },

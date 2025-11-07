@@ -8,4 +8,6 @@ const (
 	TableDriver        = "drivers"
 	TableDriverStatus  = "driver_status"
 	TableTrip          = "trips"
+	TableTripStop      = "trip_stops"
+	TableStop          = "stops"
 )
