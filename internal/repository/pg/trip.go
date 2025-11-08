@@ -10,6 +10,7 @@ import (
 
 type Trip interface {
 	All(ctx context.Context) ([]*model.TripResponse, error)
+	AllShort(ctx context.Context) ([]*model.TripShortInfo, error)
 	ByID(ctx context.Context, id int) (*model.TripResponse, error)
 	Create(ctx context.Context, trip *model.Trip) error
 	Update(ctx context.Context, trip *model.TripUpdate) error
@@ -64,6 +65,39 @@ func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
 		return nil, err
 	}
 	return trips, nil
+}
+
+func (t *trip) AllShort(ctx context.Context) ([]*model.TripShortInfo, error) {
+	var result []*model.TripShortInfo
+	query, args, err := t.qb.Sq.Select(
+		"trips.id AS trip_id",
+		"b.license_plate",
+		"b.brand",
+		"d.first_name || ' ' || d.last_name AS driver_name",
+		"s_start.name AS start_stop",
+		"s_end.name AS end_stop",
+		"ts_start.arrival_time AS start_time",
+		"ts_end.departure_time AS end_time",
+		"base_price").
+		From(TableTrip).
+		Join("trip_stops ts_start ON ts_start.trip_id = trips.id AND ts_start.stop_order = 1").
+		Join("trip_stops ts_end ON ts_end.trip_id = trips.id AND ts_end.stop_order = (SELECT MAX(ts2.stop_order) FROM trip_stops ts2 WHERE ts2.trip_id = trips.id)").
+		Join("stops s_start ON s_start.id = ts_start.stop_id").
+		Join("stops s_end ON s_end.id = ts_end.stop_id").
+		Join("bus b ON b.id = trips.bus_id").
+		Join("drivers d ON d.id = trips.driver_id").
+		ToSql()
+	if err != nil {
+		t.logger.Error(err)
+		return nil, err
+	}
+	err = t.qb.DB.SelectContext(ctx, &result, query, args...)
+	if err != nil {
+		t.logger.Error(err)
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (t *trip) ByID(ctx context.Context, id int) (*model.TripResponse, error) {

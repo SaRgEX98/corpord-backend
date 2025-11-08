@@ -53,8 +53,14 @@ func (s *stop) All(ctx context.Context) ([]*model.Stop, error) {
 }
 
 func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
-	var result *model.Stop
-	query, args, err := s.qb.Sq.Select().
+	var result model.Stop
+	query, args, err := s.qb.Sq.Select(
+		"name",
+		"address",
+		"latitude",
+		"longitude",
+		"created_at",
+		"updated_at").
 		From(TableStop).
 		Where(sq.Eq{"id": id}).
 		ToSql()
@@ -67,7 +73,7 @@ func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
 		s.logger.Error("failed to execute query from database", zap.Error(err))
 		return nil, err
 	}
-	return result, nil
+	return &result, nil
 }
 
 func (s *stop) Create(ctx context.Context, stop *model.Stop) error {

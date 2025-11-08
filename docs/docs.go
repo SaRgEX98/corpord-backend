@@ -2249,22 +2249,19 @@ const docTemplate = `{
         },
         "/trips": {
             "get": {
-                "description": "Возвращает список всех маршрутов в системе",
+                "description": "Возвращает онимичную модель для отображения пользователю информации о маршрутах и их остановках",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trips"
                 ],
-                "summary": "Получить список всех маршрутов",
+                "summary": "Получить информацию по таблице trip",
                 "responses": {
                     "200": {
-                        "description": "Список маршрутов",
+                        "description": "Модель остановок",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Trip"
-                            }
+                            "$ref": "#/definitions/model.TripShortInfo"
                         }
                     },
                     "500": {
@@ -2713,6 +2710,38 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "model.TripShortInfo": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "number"
+                },
+                "brand": {
+                    "type": "string"
+                },
+                "driver_name": {
+                    "type": "string"
+                },
+                "end_stop": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "license_plate": {
+                    "type": "string"
+                },
+                "start_stop": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "trip_id": {
+                    "type": "integer"
                 }
             }
         },

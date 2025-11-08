@@ -52,7 +52,7 @@ func (ts *tripStop) All(ctx context.Context) ([]*model.TripStop, error) {
 }
 
 func (ts *tripStop) ByID(ctx context.Context, id int) (*model.TripStop, error) {
-	var stop *model.TripStop
+	var result model.TripStop
 	query, args, err := ts.qb.Sq.Select(
 		"trip_id",
 		"stop_id",
@@ -68,12 +68,12 @@ func (ts *tripStop) ByID(ctx context.Context, id int) (*model.TripStop, error) {
 		return nil, err
 	}
 
-	err = ts.qb.DB.GetContext(ctx, &stop, query, args...)
+	err = ts.qb.DB.GetContext(ctx, &result, query, args...)
 	if err != nil {
 		ts.logger.Error(err)
 		return nil, err
 	}
-	return stop, nil
+	return &result, nil
 }
 
 func (ts *tripStop) Create(ctx context.Context, tripStop *model.TripStop) error {

@@ -15,6 +15,15 @@ type TripStop struct {
 	PriceToNext   int       `json:"price_to_next" db:"price_to_next"`
 }
 
+type TripStopResponse struct {
+	TripID        int       `json:"trip_id" db:"trip_id"`
+	Stop          string    `json:"stop" db:"stop"`
+	ArrivalTime   time.Time `json:"arrival_time" db:"arrival_time"`
+	DepartureTime time.Time `json:"departure_time" db:"departure_time"`
+	StopOrder     int       `json:"stop_order" db:"stop_order"`
+	PriceToNext   int       `json:"price_to_next" db:"price_to_next"`
+}
+
 type TripStopUpdate struct {
 	ID            int        `json:"-,omitempty" db:"id"`
 	TripID        *int       `json:"trip_id" db:"trip_id"`

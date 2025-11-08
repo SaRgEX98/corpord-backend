@@ -29,6 +29,18 @@ type TripUpdate struct {
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
 }
 
+type TripShortInfo struct {
+	TripID     int       `db:"trip_id" json:"trip_id"`
+	BusPlate   string    `db:"license_plate" json:"license_plate"`
+	BusName    string    `db:"brand" json:"brand"`
+	DriverName string    `db:"driver_name" json:"driver_name"`
+	StartStop  string    `db:"start_stop" json:"start_stop"`
+	EndStop    string    `db:"end_stop" json:"end_stop"`
+	StartTime  time.Time `db:"start_time" json:"start_time"`
+	EndTime    time.Time `db:"end_time" json:"end_time"`
+	BasePrice  float64   `db:"base_price" json:"base_price"`
+}
+
 type TripResponse struct {
 	ID         int `json:"-,omitempty" db:"id"`
 	ViewBus    `json:"bus"`

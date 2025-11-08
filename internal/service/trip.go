@@ -9,6 +9,7 @@ import (
 
 type Trip interface {
 	All(ctx context.Context) ([]*model.TripResponse, error)
+	AllShort(ctx context.Context) ([]*model.TripShortInfo, error)
 	ById(ctx context.Context, id int) (*model.TripResponse, error)
 	Create(ctx context.Context, trip *model.Trip) error
 	Update(ctx context.Context, trip *model.TripUpdate) error
@@ -29,6 +30,10 @@ func NewTrip(logger *logger.Logger, repo pg.Trip) Trip {
 
 func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
 	return t.repo.All(ctx)
+}
+
+func (t *trip) AllShort(ctx context.Context) ([]*model.TripShortInfo, error) {
+	return t.repo.AllShort(ctx)
 }
 
 func (t *trip) ById(ctx context.Context, id int) (*model.TripResponse, error) {

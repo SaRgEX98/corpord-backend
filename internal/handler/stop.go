@@ -70,7 +70,9 @@ func (s *stop) ByID(c *gin.Context) {
 	output, err := s.s.ByID(c.Request.Context(), id)
 	if err != nil {
 		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
 		return
 	}
 	c.JSON(http.StatusOK, output)

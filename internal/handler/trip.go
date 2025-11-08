@@ -42,6 +42,27 @@ func (h *Trip) All(c *gin.Context) {
 	c.JSON(http.StatusOK, trips)
 }
 
+// AllShort retrieves a list of short trip info
+// @Summary Получить информацию по таблице trip
+// @Description Возвращает онимичную модель для отображения пользователю информации о маршрутах и их остановках
+// @Tags trips
+// @Produce json
+// @Success 200 {object} model.TripShortInfo "Модель остановок"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /trips [get]
+func (h *Trip) AllShort(c *gin.Context) {
+	h.logger.Debug("TripStops AllShort")
+	all, err := h.s.AllShort(c.Request.Context())
+	if err != nil {
+		h.logger.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, all)
+}
+
 // ByID retrieves a single row of trip
 // @Summary Получить маршрут
 // @Description Возвращает маршрут в системе по ID

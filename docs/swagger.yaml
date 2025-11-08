@@ -157,6 +157,27 @@ definitions:
     - end_time
     - start_time
     type: object
+  model.TripShortInfo:
+    properties:
+      base_price:
+        type: number
+      brand:
+        type: string
+      driver_name:
+        type: string
+      end_stop:
+        type: string
+      end_time:
+        type: string
+      license_plate:
+        type: string
+      start_stop:
+        type: string
+      start_time:
+        type: string
+      trip_id:
+        type: integer
+    type: object
   model.TripStop:
     properties:
       arrival_time:
@@ -1716,21 +1737,20 @@ paths:
       - trip_stops
   /trips:
     get:
-      description: Возвращает список всех маршрутов в системе
+      description: Возвращает онимичную модель для отображения пользователю информации
+        о маршрутах и их остановках
       produces:
       - application/json
       responses:
         "200":
-          description: Список маршрутов
+          description: Модель остановок
           schema:
-            items:
-              $ref: '#/definitions/model.Trip'
-            type: array
+            $ref: '#/definitions/model.TripShortInfo'
         "500":
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить список всех маршрутов
+      summary: Получить информацию по таблице trip
       tags:
       - trips
   /trips/{id}:

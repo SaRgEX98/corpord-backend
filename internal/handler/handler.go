@@ -91,7 +91,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		}
 		trip := v1.Group("/trips")
 		{
-			trip.GET("/", h.trip.All)
+			trip.GET("/", h.trip.AllShort)
 			trip.GET("/:id", h.trip.ByID)
 		}
 		ts := v1.Group("/trip_stops")
