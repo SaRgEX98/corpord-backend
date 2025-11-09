@@ -12,7 +12,7 @@ type TripStop struct {
 	ArrivalTime   time.Time `json:"arrival_time" db:"arrival_time"`
 	DepartureTime time.Time `json:"departure_time" db:"departure_time"`
 	StopOrder     int       `json:"stop_order" db:"stop_order"`
-	PriceToNext   int       `json:"price_to_next" db:"price_to_next"`
+	PriceToNext   float64   `json:"price_to_next" db:"price_to_next"`
 }
 
 type TripStopResponse struct {
@@ -21,7 +21,7 @@ type TripStopResponse struct {
 	ArrivalTime   time.Time `json:"arrival_time" db:"arrival_time"`
 	DepartureTime time.Time `json:"departure_time" db:"departure_time"`
 	StopOrder     int       `json:"stop_order" db:"stop_order"`
-	PriceToNext   int       `json:"price_to_next" db:"price_to_next"`
+	PriceToNext   float64   `json:"price_to_next" db:"price_to_next"`
 }
 
 type TripStopUpdate struct {
@@ -31,7 +31,7 @@ type TripStopUpdate struct {
 	ArrivalTime   *time.Time `json:"arrival_time" db:"arrival_time"`
 	DepartureTime *time.Time `json:"departure_time" db:"departure_time"`
 	StopOrder     *int       `json:"stop_order" db:"stop_order"`
-	PriceToNext   *int       `json:"price_to_next" db:"price_to_next"`
+	PriceToNext   *float64   `json:"price_to_next" db:"price_to_next"`
 }
 
 func (tu *TripStopUpdate) Validate() error {
@@ -43,24 +43,24 @@ func (tu *TripStopUpdate) Validate() error {
 }
 
 func (tu *TripStopUpdate) ToMap() map[string]interface{} {
-	var result map[string]interface{}
+	result := make(map[string]interface{})
 	if tu.ArrivalTime != nil {
-		result["arrival_time"] = tu.ArrivalTime.Format(time.RFC3339)
+		result["arrival_time"] = *tu.ArrivalTime
 	}
 	if tu.DepartureTime != nil {
-		result["departure_time"] = tu.DepartureTime.Format(time.RFC3339)
+		result["departure_time"] = *tu.DepartureTime
 	}
 	if tu.StopOrder != nil {
-		result["stop_order"] = tu.StopOrder
+		result["stop_order"] = *tu.StopOrder
 	}
 	if tu.PriceToNext != nil {
-		result["price_to_next"] = tu.PriceToNext
+		result["price_to_next"] = *tu.PriceToNext
 	}
 	if tu.TripID != nil {
-		result["trip_id"] = tu.TripID
+		result["trip_id"] = *tu.TripID
 	}
 	if tu.StopID != nil {
-		result["stop_id"] = tu.StopID
+		result["stop_id"] = *tu.StopID
 	}
 	return result
 }

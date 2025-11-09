@@ -92,6 +92,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		trip := v1.Group("/trips")
 		{
 			trip.GET("/", h.trip.AllShort)
+			trip.GET("/all", h.trip.All)
 			trip.GET("/:id", h.trip.ByID)
 		}
 		ts := v1.Group("/trip_stops")
@@ -160,7 +161,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 					adminTrip.PUT("/:id", h.trip.Update)
 					adminTrip.DELETE("/:id", h.trip.Delete)
 				}
-				adminTripStop := admin.Group("/trip_stop")
+				adminTripStop := admin.Group("/trip_stops")
 				{
 					adminTripStop.POST("/", h.tripStop.Create)
 					adminTripStop.PUT("/:id", h.tripStop.Update)

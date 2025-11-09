@@ -45,6 +45,7 @@ func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
 		"end_time",
 		"trips.status",
 		"base_price",
+		"(SELECT JSON_AGG(name, address, latitude, longitude) FROM stops WHERE id = 1)",
 		"trips.created_at",
 		"trips.updated_at").
 		From(TableTrip).
@@ -53,6 +54,8 @@ func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
 		Join("bus_categories bc ON bc.id = b.category_id").
 		Join("drivers d ON d.id = trips.driver_id").
 		Join("driver_status ds ON ds.id = d.status").
+		Join("trip_stops ts ON trips.id = ts.trip_id").
+		Join("stops s ON s.id = ts.stop_id").
 		ToSql()
 	if err != nil {
 		t.logger.Error(err)

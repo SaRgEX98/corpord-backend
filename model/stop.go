@@ -33,7 +33,7 @@ func (su *StopUpdate) Validate() error {
 func (su *StopUpdate) ToMap() map[string]interface{} {
 	stop := make(map[string]interface{})
 	if su.Name != nil {
-		stop = map[string]interface{}{}
+		stop["name"] = *su.Name
 	}
 	if su.Address != nil {
 		stop["address"] = *su.Address

@@ -53,7 +53,7 @@ func (s *stop) All(c *gin.Context) {
 // @Summary Получить остановку
 // @Description Возвращает остановку по ID
 // @Param id path int true "ID остановки"
-// @Tags stop
+// @Tags stops
 // @Produce json
 // @Success 200 {object} model.TripStop "Модель пути"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"

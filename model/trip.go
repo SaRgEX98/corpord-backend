@@ -49,6 +49,7 @@ type TripResponse struct {
 	EndTime    time.Time `json:"end_time" db:"end_time"`
 	Status     string    `json:"status" db:"status"`
 	BasePrice  float32   `json:"base_price" db:"base_price"`
+	Stop       `json:"stops"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }

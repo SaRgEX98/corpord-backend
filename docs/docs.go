@@ -2158,7 +2158,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "stop"
+                    "stops"
                 ],
                 "summary": "Получить остановку",
                 "parameters": [

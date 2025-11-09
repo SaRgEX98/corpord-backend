@@ -1694,7 +1694,7 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       summary: Получить остановку
       tags:
-      - stop
+      - stops
   /trip_stops:
     get:
       description: Возвращает все остановки в системе
