@@ -12,8 +12,8 @@ import (
 
 type BusRepository interface {
 	CreateBus(ctx context.Context, bus model.Bus) error
-	GetBus(ctx context.Context, id int) (*model.Bus, error)
-	GetAllBuses(ctx context.Context) ([]model.Bus, error)
+	GetBus(ctx context.Context, id int) (*model.ViewBus, error)
+	GetAllBuses(ctx context.Context) ([]model.ViewBus, error)
 	UpdateBus(ctx context.Context, bus *model.BusUpdate) error
 	DeleteBus(ctx context.Context, id int) error
 }
@@ -58,10 +58,18 @@ func (b *busRepository) CreateBus(ctx context.Context, bus model.Bus) error {
 	return nil
 }
 
-func (b *busRepository) GetBus(ctx context.Context, id int) (*model.Bus, error) {
-	query, args, err := b.qb.Sq.Select("buses.*").
+func (b *busRepository) GetBus(ctx context.Context, id int) (*model.ViewBus, error) {
+	query, args, err := b.qb.Sq.Select(
+		"bus.id",
+		"license_plate",
+		"brand",
+		"capacity",
+		"bus_categories.name as category_name",
+		"bus_statuses.name as status_name").
 		From("bus").
-		Where(sq.Eq{"buses.id": id}).
+		Join("bus_categories ON bus.category_id = bus_categories.id").
+		Join("bus_statuses ON bus.status_id = bus_statuses.id").
+		Where(sq.Eq{"bus.id": id}).
 		ToSql()
 
 	if err != nil {
@@ -69,7 +77,7 @@ func (b *busRepository) GetBus(ctx context.Context, id int) (*model.Bus, error) 
 		return nil, err
 	}
 
-	var bus model.Bus
+	var bus model.ViewBus
 	err = b.qb.DB.GetContext(ctx, &bus, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to get bus", "error", err, "id", id)
@@ -79,9 +87,17 @@ func (b *busRepository) GetBus(ctx context.Context, id int) (*model.Bus, error) 
 	return &bus, nil
 }
 
-func (b *busRepository) GetAllBuses(ctx context.Context) ([]model.Bus, error) {
-	query, args, err := b.qb.Sq.Select("bus.*").
+func (b *busRepository) GetAllBuses(ctx context.Context) ([]model.ViewBus, error) {
+	query, args, err := b.qb.Sq.Select(
+		"bus.id",
+		"license_plate",
+		"brand",
+		"capacity",
+		"bus_categories.name as category_name",
+		"bus_statuses.name as status_name").
 		From("bus").
+		Join("bus_categories ON bus.category_id = bus_categories.id").
+		Join("bus_statuses ON bus.status_id = bus_statuses.id").
 		ToSql()
 
 	if err != nil {
@@ -89,7 +105,7 @@ func (b *busRepository) GetAllBuses(ctx context.Context) ([]model.Bus, error) {
 		return nil, err
 	}
 
-	var buses []model.Bus
+	var buses []model.ViewBus
 	err = b.qb.DB.SelectContext(ctx, &buses, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to get all buses", "error", err)

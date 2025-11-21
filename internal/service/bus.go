@@ -9,8 +9,8 @@ import (
 
 type Bus interface {
 	CreateBus(ctx context.Context, bus model.Bus) error
-	GetBus(ctx context.Context, id int) (*model.Bus, error)
-	GetAllBuses(ctx context.Context) ([]model.Bus, error)
+	GetBus(ctx context.Context, id int) (*model.ViewBus, error)
+	GetAllBuses(ctx context.Context) ([]model.ViewBus, error)
 	UpdateBus(ctx context.Context, bus model.BusUpdate) error
 	DeleteBus(ctx context.Context, id int) error
 }
@@ -31,11 +31,11 @@ func (b *bus) CreateBus(ctx context.Context, bus model.Bus) error {
 	return b.repo.CreateBus(ctx, bus)
 }
 
-func (b *bus) GetBus(ctx context.Context, id int) (*model.Bus, error) {
+func (b *bus) GetBus(ctx context.Context, id int) (*model.ViewBus, error) {
 	return b.repo.GetBus(ctx, id)
 }
 
-func (b *bus) GetAllBuses(ctx context.Context) ([]model.Bus, error) {
+func (b *bus) GetAllBuses(ctx context.Context) ([]model.ViewBus, error) {
 	return b.repo.GetAllBuses(ctx)
 }
 

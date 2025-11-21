@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
+	"errors"
 	"net/http"
 	"time"
 
 	"corpord-api/internal/service"
 	"corpord-api/model"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,6 +26,17 @@ func NewAuthHandler(s service.Auth, l *logger.Logger) *AuthHandler {
 }
 
 // Register handles user registration
+// @Summary Регистрация нового пользователя
+// @Description Создает нового пользователя в системе
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body model.UserCreate true "Данные пользователя"
+// @Success 201 {object} model.UserResponse "Успешная регистрация"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 409 {object} apperrors.ErrorResponse "Пользователь уже существует"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	start := time.Now()
 	h.logger.Info("handling user registration request")
@@ -30,14 +44,24 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req model.UserCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrBadRequest.Message,
+		})
 		return
 	}
 
 	user, err := h.service.Register(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.Warnf("registration failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if errors.Is(err, service.ErrEmailExists) {
+			c.JSON(http.StatusConflict, apperrors.ErrorResponse{
+				Error: "Пользователь с таким email уже существует",
+			})
+			return
+		}
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrInternal.Message,
+		})
 		return
 	}
 
@@ -46,6 +70,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 // Login handles user authentication
+// @Summary Аутентификация пользователя
+// @Description Вход пользователя в систему
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param input body model.UserLogin true "Данные для входа"
+// @Success 200 {object} model.TokenResponse "Успешный вход"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
+// @Failure 401 {object} apperrors.ErrorResponse "Неверные учетные данные"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	start := time.Now()
 	h.logger.Info("handling user login request")
@@ -53,17 +88,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req model.UserLogin
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrBadRequest.Message,
+		})
 		return
 	}
 
 	token, err := h.service.Login(c.Request.Context(), req)
 	if err != nil {
 		h.logger.Warnf("login failed for %s: %v", req.Email, err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			c.JSON(apperrors.ErrUnauthorized.Status, apperrors.ErrorResponse{
+				Error: "Неверный email или пароль",
+			})
+			return
+		}
+		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
+			Error: apperrors.ErrInternal.Message,
+		})
 		return
 	}
 
 	h.logger.Infof("user %s logged in successfully in %v", req.Email, time.Since(start))
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, model.TokenResponse{
+		AccessToken: token,
+	})
 }

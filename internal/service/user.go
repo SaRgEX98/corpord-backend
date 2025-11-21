@@ -8,13 +8,8 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository/pg"
 	"corpord-api/model"
-	"golang.org/x/crypto/bcrypt"
-)
 
-var (
-	ErrUserNotFound       = errors.New("user not found")
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrEmailExists        = errors.New("email already exists")
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User interface {

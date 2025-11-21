@@ -1,14 +1,14 @@
 package middleware
 
 import (
-	"corpord-api/internal/logger"
-	"corpord-api/internal/token"
-	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"corpord-api/internal/apperrors"
+	"corpord-api/internal/logger"
+	"corpord-api/internal/token"
 )
 
 const (
@@ -23,14 +23,14 @@ func AuthMiddleware(logger *logger.Logger, tokenManager token.Manager) gin.Handl
 		tokenString, err := getTokenFromHeader(c)
 		if err != nil {
 			logger.Warnf("Auth error: %v", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.AbortWithStatusJSON(apperrors.ErrUnauthorized.Status, apperrors.ErrorResponse{Error: "Необходима авторизация"})
 			return
 		}
 
 		claims, err := tokenManager.Validate(tokenString)
 		if err != nil {
 			logger.Warnf("Invalid token: %v", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.AbortWithStatusJSON(apperrors.ErrUnauthorized.Status, apperrors.ErrorResponse{Error: "Неверный токен авторизации"})
 			return
 		}
 
@@ -45,24 +45,23 @@ func RoleMiddleware(requiredRole string, logger *logger.Logger) gin.HandlerFunc 
 	return func(c *gin.Context) {
 		roleVal, exists := c.Get(RoleCtx)
 		if !exists {
-			err := errors.New("role not found in context")
-			logger.Warnf("Role check failed: %v", err)
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			logger.Warnf("Role check failed: role not found in context")
+			c.AbortWithStatusJSON(apperrors.ErrForbidden.Status, apperrors.ErrorResponse{Error: "Не удалось определить роль пользователя"})
 			return
 		}
 
 		role, ok := roleVal.(string)
 		if !ok {
-			err := errors.New("invalid role type in context")
-			logger.Errorf("Role check failed: %v", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			logger.Error("Role check failed: invalid role type in context")
+			c.AbortWithStatusJSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{Error: "Внутренняя ошибка сервера"})
 			return
 		}
 
 		if role != requiredRole {
-			err := fmt.Errorf("insufficient permissions: required role %s, got %s", requiredRole, role)
-			logger.Warnf("Role check failed: %v", err)
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
+			logger.Warnf("Insufficient permissions: required role %s, got %s", requiredRole, role)
+			c.AbortWithStatusJSON(apperrors.ErrForbidden.Status, apperrors.ErrorResponse{
+				Error: fmt.Sprintf("Недостаточно прав. Требуется роль: %s", requiredRole),
+			})
 			return
 		}
 
