@@ -58,7 +58,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 	h.r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	// Add global middleware
 	h.r.Use(middleware.RequestLogger(h.logger))
-
+	h.r.Use(middleware.CORSMiddleware())
 	// API v1 routes
 	v1 := h.r.Group("api/v1")
 	{
