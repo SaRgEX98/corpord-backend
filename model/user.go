@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-// UserCreate представляет данные, необходимые для создания пользователя
+// UserCreate представляет данные для создания пользователя
 type UserCreate struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
-	Name     string `json:"name" binding:"required"`
+	Email    string  `json:"email" binding:"required,email"`
+	Password *string `json:"password,omitempty"` // pointer для nullable
+	Name     string  `json:"name" binding:"required"`
 }
 
 // UserUpdate представляет данные для обновления пользователя
@@ -30,7 +30,6 @@ func (u *UserUpdate) Validate() error {
 		if *u.Email == "" {
 			return errors.New("email не может быть пустым")
 		}
-		// Простая проверка формата email
 		if !strings.Contains(*u.Email, "@") {
 			return errors.New("некорректный формат email")
 		}
@@ -43,8 +42,7 @@ func (u *UserUpdate) Validate() error {
 	return nil
 }
 
-// UserResponse представляет данные пользователя для отображения
-// (без чувствительных данных)
+// UserResponse представляет данные пользователя для отображения (без чувствительных данных)
 type UserResponse struct {
 	ID        int       `json:"id"`
 	Email     string    `json:"email"`
@@ -54,7 +52,7 @@ type UserResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// UserLogin представляет данные для аутентификации пользователя
+// UserLogin представляет данные для аутентификации
 type UserLogin struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
@@ -64,7 +62,7 @@ type UserLogin struct {
 type UserDB struct {
 	ID           int       `db:"id"`
 	Email        string    `db:"email"`
-	PasswordHash string    `db:"password_hash"`
+	PasswordHash *string   `db:"password_hash"` // nullable для SSO
 	Name         string    `db:"name"`
 	Role         string    `db:"role_name"`
 	CreatedAt    time.Time `db:"created_at"`
