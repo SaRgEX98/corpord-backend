@@ -12,4 +12,6 @@ var (
 	ErrBusCategoryExists   = errors.New("bus category already exists")
 	ErrBusStatusNotFound   = errors.New("bus status not found")
 	ErrBusStatusExists     = errors.New("bus status already exists")
+	ErrUseSSOLogin         = errors.New("please login via SSO provider")
+	ErrInvalidPass         = errors.New("invalid credentials")
 )
