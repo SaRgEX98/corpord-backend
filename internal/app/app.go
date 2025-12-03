@@ -52,7 +52,7 @@ func New() *App {
 	a.logger.Info("initializing application")
 
 	a.db = database.New(context.TODO(), &a.cfg.Database)
-	if a.cfg.Env == "development" {
+	if a.cfg.App.Env == "development" {
 		a.logger.Info("applying database migrations")
 		if err := a.db.Postgres.MigrateUp(context.TODO()); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -68,7 +68,7 @@ func New() *App {
 	a.r = repository.New(a.logger, a.qb)
 
 	a.logger.Info("initializing token manager")
-	a.t = token.NewManager(a.cfg.JWTConfig.Secret, a.cfg.JWTConfig.AccessTokenTTL)
+	a.t = token.NewManager(a.cfg.JWT.Secret, a.cfg.JWT.AccessTokenTTL)
 
 	a.logger.Info("initializing service layer")
 	a.s = service.New(a.logger, a.r, a.t)
