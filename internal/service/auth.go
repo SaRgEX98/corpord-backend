@@ -50,13 +50,13 @@ func (s *auth) Register(ctx context.Context, input *model.UserCreate) (*model.Us
 		return nil, errors.New("пользователь с таким email уже существует")
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		s.logger.Error("Failed to hash password", "error", err)
 		return nil, errors.New("ошибка при создании пользователя")
 	}
 
-	input.Password = string(hashedPassword)
+	*input.Password = string(hashedPassword)
 
 	userID, err := s.authRepo.CreateUser(ctx, input)
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *auth) Login(ctx context.Context, credentials model.UserLogin) (string, 
 		return "", ErrInvalidCredentials
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(credentials.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(*u.PasswordHash), []byte(credentials.Password)); err != nil {
 		s.logger.Warn("Invalid password", "email", credentials.Email)
 		return "", ErrInvalidCredentials
 	}
