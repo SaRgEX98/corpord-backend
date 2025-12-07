@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"strings"
 	"time"
 )
@@ -48,14 +49,18 @@ type UserResponse struct {
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 	Role      string    `json:"role"`
+	UserAgent string    `json:"user_agent"`
+	IP        string    `json:"ip"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // UserLogin представляет данные для аутентификации
 type UserLogin struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required"`
+	UserAgent string `json:"user_agent" binding:"required"`
+	IP        string `json:"ip" binding:"required"`
 }
 
 // UserDB представляет модель пользователя в базе данных
@@ -65,8 +70,22 @@ type UserDB struct {
 	PasswordHash *string   `db:"password_hash"` // nullable для SSO
 	Name         string    `db:"name"`
 	Role         string    `db:"role_name"`
+	UserAgent    string    `db:"user_agent"`
+	IP           string    `db:"ip"`
+	Provider     string    `db:"provider.go"`
+	ProviderID   string    `db:"provider_id"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+// UserIdentity
+type UserIdentity struct {
+	ID         uuid.UUID `db:"id"`
+	UserID     int       `db:"user_id"`
+	Provider   string    `db:"provider.go"`
+	ProviderID string    `db:"provider_id"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 // ToResponse преобразует UserDB в UserResponse
@@ -76,6 +95,8 @@ func (u *UserDB) ToResponse() *UserResponse {
 		Email:     u.Email,
 		Name:      u.Name,
 		Role:      u.Role,
+		UserAgent: u.UserAgent,
+		IP:        u.IP,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}
