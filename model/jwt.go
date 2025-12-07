@@ -11,8 +11,8 @@ type Claims struct {
 	UserID     int       `json:"user_id"`
 	Email      string    `json:"email"`
 	Role       string    `json:"role"`
-	Provider   string    `json:"provider"`    // "local", "google", "yandex", "azure", etc
-	ProviderID string    `json:"provider_id"` // sub claim from SSO provider
+	Provider   string    `json:"provider.go"` // "local", "google", "yandex", "azure", etc
+	ProviderID string    `json:"provider_id"` // sub claim from SSO provider.go
 	AuthTime   time.Time `json:"auth_time"`   // when user authenticated
 	AMR        []string  `json:"amr"`         // authentication methods: pwd, otp, mfa, federated
 	jwt.RegisteredClaims

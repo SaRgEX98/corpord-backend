@@ -4,7 +4,7 @@ import "time"
 
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"-,omitempty"`
 }
 
 type RefreshSession struct {
@@ -16,4 +16,8 @@ type RefreshSession struct {
 	ExpiresAt time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
 }

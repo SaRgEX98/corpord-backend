@@ -48,7 +48,6 @@ func (r *refreshTokenRepo) Save(ctx context.Context, token *model.RefreshSession
 			token.IP,
 			token.UserAgent,
 		).
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
 		r.logger.Error(err)
@@ -77,8 +76,7 @@ func (r *refreshTokenRepo) FindByHash(ctx context.Context, hash string) (*model.
 		"ip",
 		"user_agent",
 	).From(TableRefreshToken).
-		Where(sq.Eq{"token_hash": hash}).
-		PlaceholderFormat(sq.Dollar).
+		Where(sq.Eq{"token_hash": hash, "revoked": false}).
 		ToSql()
 	if err != nil {
 		r.logger.Error(err)
@@ -100,7 +98,6 @@ func (r *refreshTokenRepo) Revoke(ctx context.Context, id string) error {
 		Set("revoked", true).
 		Set("updated_at", sq.Expr("now()")).
 		Where(sq.Eq{"id": id}).
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
 		r.logger.Error(err)
@@ -121,7 +118,6 @@ func (r *refreshTokenRepo) RevokeAllByUser(ctx context.Context, userID int) erro
 		Set("revoked", true).
 		Set("updated_at", sq.Expr("now()")).
 		Where(sq.Eq{"user_id": userID}).
-		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
 		r.logger.Error(err)

@@ -63,11 +63,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 	v1 := h.r.Group("api/v1")
 	{
 		// Public routes - no authentication required
-		auth := v1.Group("/auth")
-		{
-			auth.POST("/register", h.auth.Register) // New user registration
-			auth.POST("/login", h.auth.Login)       // User login
-		}
+		RegisterAuthRoutes(v1, h.auth)
 		bus := v1.Group("/bus")
 		{
 			bus.GET("/", h.bus.GetAllBuses)
@@ -112,11 +108,11 @@ func (h *handler) InitRoutes() *gin.Engine {
 		}
 		// Protected routes - require valid JWT token
 		authorized := v1.Group("")
-		authorized.Use(middleware.AuthMiddleware(h.logger, h.t))
+		authorized.Use(middleware.AuthMiddleware(h.logger, h.t), middleware.RefreshMiddleware(h.auth.service))
 		{
 			// Example of admin-only route
 			admin := authorized.Group("/admin")
-			admin.Use(middleware.RoleMiddleware(model.RoleAdmin, h.logger))
+			admin.Use(middleware.RoleMiddleware(h.logger, model.RoleAdmin))
 			{
 				// Add admin routes here
 				// admin.GET("/users", h.user.GetAllUsers)
