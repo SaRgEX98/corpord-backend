@@ -100,7 +100,7 @@ func New() *App {
 	a.logger.Info("initializing server")
 	a.srv = server.New(a.h.InitRoutes())
 
-	a.scheduler = scheduler.New(a.logger, time.Minute)
+	a.scheduler = scheduler.New(a.logger, time.Hour)
 
 	// Добавляем задачу очистки токенов
 	cleanupTask := scheduler.NewCleanupRefreshTokensTask(a.r.PgRepository.RefreshToken, a.logger)

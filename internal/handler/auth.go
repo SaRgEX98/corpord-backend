@@ -262,10 +262,8 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 
 func RegisterAuthRoutes(rg *gin.RouterGroup, authHandler *AuthHandler) {
 	auth := rg.Group("/auth")
-
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
-	auth.POST("/sso/login", authHandler.SSOLogin)
 	auth.POST("/refresh", authHandler.Refresh)
 	auth.POST("/logout", authHandler.Logout)
 	auth.POST("/logout/all", authHandler.LogoutAll)
