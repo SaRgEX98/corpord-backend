@@ -39,7 +39,7 @@ func (r *userIdentitiesRepo) GetByUserID(ctx context.Context, userID int) ([]*mo
 	query, args, err := r.qb.Sq.Select(
 		"id",
 		"user_id",
-		"provider.go",
+		"provider",
 		"provider_id",
 		"created_at",
 		"updated_at",
@@ -69,12 +69,12 @@ func (r *userIdentitiesRepo) GetByProvider(ctx context.Context, userID int, prov
 	query, args, err := r.qb.Sq.Select(
 		"id",
 		"user_id",
-		"provider.go",
+		"provider",
 		"provider_id",
 		"created_at",
 		"updated_at",
 	).From("user_identities").
-		Where(sq.Eq{"user_id": userID, "provider.go": provider}).
+		Where(sq.Eq{"user_id": userID, "provider": provider}).
 		ToSql()
 	if err != nil {
 		r.logger.Error("failed to build query for GetByProvider", "error", err)
@@ -99,12 +99,12 @@ func (r *userIdentitiesRepo) GetProviderByID(ctx context.Context, provider, prov
 	query, args, err := r.qb.Sq.Select(
 		"id",
 		"user_id",
-		"provider.go",
+		"provider",
 		"provider_id",
 		"created_at",
 		"updated_at",
 	).From("user_identities").
-		Where(sq.Eq{"provider.go": provider, "provider_id": providerID}).
+		Where(sq.Eq{"provider": provider, "provider_id": providerID}).
 		ToSql()
 	if err != nil {
 		r.logger.Error("failed to build query for GetProviderByID", "error", err)
@@ -127,8 +127,8 @@ func (r *userIdentitiesRepo) GetProviderByID(ctx context.Context, provider, prov
 // AddIdentity adds a new identity for a user
 func (r *userIdentitiesRepo) AddIdentity(ctx context.Context, identity *model.UserIdentity) error {
 	query, args, err := r.qb.Sq.Insert("user_identities").
-		Columns("user_id", "provider.go", "provider_id").
-		Values(identity.UserID, identity.Provider, identity.ProviderID).
+		Columns("id", "user_id", "provider", "provider_id").
+		Values(identity.ID, identity.UserID, identity.Provider, identity.ProviderID).
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {

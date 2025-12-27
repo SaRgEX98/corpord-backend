@@ -7,6 +7,8 @@ import (
 	"corpord-api/model"
 	"errors"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // SSOLogin — оркеструет вход через SSO-провайдера:
@@ -17,7 +19,7 @@ import (
 func (s *auth) SSOLogin(
 	ctx context.Context,
 	providerName, providerCodeOrID, email, name, userAgent, ip string,
-) (*model.TokenResponse, error) {
+) (*model.TokenPair, error) {
 
 	// 1) получить провайдера из реестра
 	p, err := s.sso.Get(providerName)
@@ -88,7 +90,13 @@ func (s *auth) findOrCreateUserFromSSO(
 		}
 		if u != nil {
 			// пользователь найден по email → привязать identity
+			uid, err := uuid.NewV7()
+			if err != nil {
+				s.logger.Errorf("failed to generate uuid: %v", err)
+				return nil, fmt.Errorf("failed to generate uuid: %w", err)
+			}
 			newIdentity := &model.UserIdentity{
+				ID:         uid,
 				UserID:     u.ID,
 				Provider:   info.Provider,
 				ProviderID: info.ProviderID,
@@ -118,7 +126,13 @@ func (s *auth) findOrCreateUserFromSSO(
 	}
 
 	// создать identity для нового пользователя
+	id, err := uuid.NewV7()
+	if err != nil {
+		s.logger.Errorf("failed to generate uuid: %v", err)
+		return nil, fmt.Errorf("failed to generate uuid: %w", err)
+	}
 	newIdentity := &model.UserIdentity{
+		ID:         id,
 		UserID:     uid,
 		Provider:   info.Provider,
 		ProviderID: info.ProviderID,
@@ -141,7 +155,7 @@ func (s *auth) finalizeSSOLogin(
 	ctx context.Context,
 	u *model.UserDB,
 	provider, providerID, userAgent, ip string,
-) (*model.TokenResponse, error) {
+) (*model.TokenPair, error) {
 
 	// Помещаем провайдерные данные в user (они попадут в claims)
 	u.Provider = provider

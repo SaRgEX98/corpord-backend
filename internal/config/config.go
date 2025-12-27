@@ -16,6 +16,7 @@ type Config struct {
 	Logger   Logger   `mapstructure:"logger"`
 	HTTP     HTTP     `mapstructure:"http"`
 	JWT      JWT      `mapstructure:"jwt"`
+	SSO      SSO      `mapstructure:"sso"`
 }
 
 type App struct {
@@ -83,6 +84,18 @@ type JWT struct {
 	SigningAlgorithm string        `mapstructure:"signing_algorithm"`
 }
 
+type SSO struct {
+	Google OAuthProvider `mapstructure:"google"`
+	Yandex OAuthProvider `mapstructure:"yandex"`
+}
+
+type OAuthProvider struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURL  string `mapstructure:"redirect_url"`
+	Enabled      bool   `mapstructure:"enabled"`
+}
+
 func Load(path string) (*Config, error) {
 	v := viper.New()
 	v.SetConfigType("yaml")
@@ -133,6 +146,18 @@ func bindEnvs(v *viper.Viper) {
 	v.BindEnv("database.redis.port", "REDIS_PORT")
 	v.BindEnv("database.redis.password", "REDIS_PASSWORD")
 	v.BindEnv("database.redis.db", "REDIS_DB")
+
+	// SSO Google
+	v.BindEnv("sso.google.client_id", "SSO_GOOGLE_CLIENT_ID")
+	v.BindEnv("sso.google.client_secret", "SSO_GOOGLE_CLIENT_SECRET")
+	v.BindEnv("sso.google.redirect_url", "SSO_GOOGLE_REDIRECT_URL")
+	v.BindEnv("sso.google.enabled", "SSO_GOOGLE_ENABLED")
+
+	// SSO Yandex
+	v.BindEnv("sso.yandex.client_id", "SSO_YANDEX_CLIENT_ID")
+	v.BindEnv("sso.yandex.client_secret", "SSO_YANDEX_CLIENT_SECRET")
+	v.BindEnv("sso.yandex.redirect_url", "SSO_YANDEX_REDIRECT_URL")
+	v.BindEnv("sso.yandex.enabled", "SSO_YANDEX_ENABLED")
 }
 
 func setDefaults(v *viper.Viper) {
@@ -157,6 +182,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("http.idle_timeout", "60s")
 
 	v.SetDefault("jwt.access_token_ttl", "15m")
-	v.SetDefault("jwt.refresh_token_ttl", "720h") // 30 дней
+	v.SetDefault("jwt.refresh_token_ttl", "720h")
 	v.SetDefault("jwt.signing_algorithm", "HS256")
+
+	v.SetDefault("sso.google.enabled", false)
+	v.SetDefault("sso.yandex.enabled", false)
 }

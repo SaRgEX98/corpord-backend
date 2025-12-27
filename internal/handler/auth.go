@@ -5,6 +5,7 @@ import (
 	"corpord-api/internal/handler/helper"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
+	"corpord-api/internal/token"
 	"corpord-api/model"
 	"errors"
 	"net/http"
@@ -16,12 +17,14 @@ import (
 type AuthHandler struct {
 	service service.Auth
 	logger  *logger.Logger
+	t       token.Manager
 }
 
-func NewAuthHandler(s service.Auth, l *logger.Logger) *AuthHandler {
+func NewAuthHandler(s service.Auth, l *logger.Logger, t token.Manager) *AuthHandler {
 	return &AuthHandler{
 		service: s,
 		logger:  l,
+		t:       t,
 	}
 }
 
@@ -68,10 +71,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	helper.SetRefreshCookie(c, tokens.RefreshToken, 7*24*time.Hour) // TTL берём как у сервиса
+	helper.SetRefreshCookie(c, tokens.RefreshToken, h.t.RefreshTTL()) // TTL берём как у сервиса
 
 	h.logger.Infof("user registered successfully in %v", time.Since(start))
-	c.JSON(http.StatusCreated, tokens)
+	c.JSON(http.StatusCreated, model.TokenResponse{AccessToken: tokens.AccessToken})
 }
 
 // Login handles user authentication
@@ -117,10 +120,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	helper.SetRefreshCookie(c, tokens.RefreshToken, 7*24*time.Hour) // TTL берём как у сервиса
+	helper.SetRefreshCookie(c, tokens.RefreshToken, h.t.RefreshTTL())
 
 	h.logger.Infof("user %s logged in successfully in %v", req.Email, time.Since(start))
-	c.JSON(http.StatusOK, tokens)
+	c.JSON(http.StatusOK, model.TokenResponse{AccessToken: tokens.AccessToken})
 }
 
 // SSOLogin handles SSO authentication
@@ -160,10 +163,10 @@ func (h *AuthHandler) SSOLogin(c *gin.Context) {
 		return
 	}
 
-	helper.SetRefreshCookie(c, tokens.RefreshToken, 7*24*time.Hour) // TTL берём как у сервиса
+	helper.SetRefreshCookie(c, tokens.RefreshToken, h.t.RefreshTTL()) // TTL берём как у сервиса
 
 	h.logger.Infof("user SSO login with provider.go %s successful in %v", req.Provider, time.Since(start))
-	c.JSON(http.StatusOK, tokens)
+	c.JSON(http.StatusOK, model.TokenResponse{AccessToken: tokens.AccessToken})
 }
 
 // Refresh handles token refresh
@@ -182,11 +185,12 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	start := time.Now()
 	h.logger.Info("handling token refresh request")
 
-	var req model.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Warnf("invalid refresh request body: %v", err)
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
-			Error: apperrors.ErrBadRequest.Message,
+	// Получаем refresh token из cookie
+	refreshCookie, err := c.Cookie("refresh_token")
+	if err != nil || refreshCookie == "" {
+		h.logger.Warn("refresh token cookie not found")
+		c.JSON(apperrors.ErrUnauthorized.Status, apperrors.ErrorResponse{
+			Error: "Просроченный или недействительный токен",
 		})
 		return
 	}
@@ -194,7 +198,8 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 	ip := c.ClientIP()
 
-	tokens, err := h.service.Refresh(c.Request.Context(), req.RefreshToken, userAgent, ip)
+	// Refresh токены через сервис
+	tokens, err := h.service.Refresh(c.Request.Context(), refreshCookie, userAgent, ip)
 	if err != nil {
 		h.logger.Warnf("refresh token failed: %v", err)
 		c.JSON(apperrors.ErrUnauthorized.Status, apperrors.ErrorResponse{
@@ -203,11 +208,56 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
+	// Сохраняем новый refresh token в cookie
+	helper.SetRefreshCookie(c, tokens.RefreshToken, h.t.RefreshTTL())
+
 	h.logger.Infof("token refreshed successfully in %v", time.Since(start))
 
-	helper.SetRefreshCookie(c, tokens.RefreshToken, 7*24*time.Hour)
+	// Возвращаем новый access token
+	c.JSON(http.StatusOK, model.TokenResponse{
+		AccessToken: tokens.AccessToken,
+	})
+}
 
-	c.JSON(http.StatusOK, tokens)
+// LogoutHandler отзывает один токен
+func (h *AuthHandler) Logout(c *gin.Context) {
+	refreshCookie, err := c.Cookie("refresh_token")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token not found"})
+		return
+	}
+
+	userAgent := c.GetHeader("User-Agent")
+	ip := c.ClientIP()
+
+	if err := h.service.Logout(c.Request.Context(), refreshCookie); err != nil {
+		h.logger.Warnf("logout failed: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	// Убираем cookie
+	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+
+	h.logger.Infof("user logged out from IP %s, User-Agent %s", ip, userAgent)
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+// LogoutAllHandler отзывает все токены пользователя
+func (h *AuthHandler) LogoutAll(c *gin.Context) {
+	userID := c.GetInt("user_id") // берём из middleware авторизации
+
+	if err := h.service.LogoutAll(c.Request.Context(), userID); err != nil {
+		h.logger.Warnf("logout all failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not logout all"})
+		return
+	}
+
+	// Убираем cookie
+	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+
+	h.logger.Infof("user %d logged out from all sessions", userID)
+	c.JSON(http.StatusOK, gin.H{"message": "logged out from all sessions"})
 }
 
 func RegisterAuthRoutes(rg *gin.RouterGroup, authHandler *AuthHandler) {
@@ -217,4 +267,6 @@ func RegisterAuthRoutes(rg *gin.RouterGroup, authHandler *AuthHandler) {
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/sso/login", authHandler.SSOLogin)
 	auth.POST("/refresh", authHandler.Refresh)
+	auth.POST("/logout", authHandler.Logout)
+	auth.POST("/logout/all", authHandler.LogoutAll)
 }
