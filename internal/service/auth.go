@@ -2,126 +2,278 @@ package service
 
 import (
 	"context"
+	"corpord-api/internal/sso"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"time"
+
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository/pg"
 	"corpord-api/internal/token"
 	"corpord-api/model"
-	"errors"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Auth interface {
-	// Register creates a new user account
-	Register(ctx context.Context, user *model.UserCreate) (*model.UserResponse, error)
-	// Login authenticates a user and returns a JWT token
-	Login(ctx context.Context, credentials model.UserLogin) (string, error)
-	// ValidateToken validates a JWT token and returns the user ID
+	Register(ctx context.Context, user *model.UserCreate, userAgent, ip string) (*model.TokenPair, error)
+	Login(ctx context.Context, credentials model.UserLogin, userAgent, ip string) (*model.TokenPair, error)
+	SSOLogin(ctx context.Context, provider, providerID, email, name, userAgent, ip string) (*model.TokenPair, error)
 	ValidateToken(tokenString string) (int, error)
+	Refresh(ctx context.Context, rawRefreshToken, userAgent, ip string) (*model.TokenPair, error)
+	Logout(ctx context.Context, rawRefreshToken string) error
+	LogoutAll(ctx context.Context, userID int) error
 }
 
 type auth struct {
-	token    token.Manager
-	logger   *logger.Logger
-	authRepo pg.AuthRepository
+	token        token.Manager
+	logger       *logger.Logger
+	authRepo     pg.AuthRepository
+	refreshRepo  pg.RefreshTokenRepository
+	userIdentity pg.UserIdentitiesRepository
+	sso          *sso.Registry
 }
 
-// NewAuth creates a new auth service
-func NewAuth(logger *logger.Logger, token token.Manager, authRepo pg.AuthRepository) Auth {
+func NewAuth(
+	logger *logger.Logger,
+	token token.Manager,
+	authRepo pg.AuthRepository,
+	refreshRepo pg.RefreshTokenRepository,
+	userIdentity pg.UserIdentitiesRepository,
+	sso *sso.Registry,
+) Auth {
 	return &auth{
-		token:    token,
-		logger:   logger,
-		authRepo: authRepo,
+		token:        token,
+		logger:       logger,
+		authRepo:     authRepo,
+		refreshRepo:  refreshRepo,
+		userIdentity: userIdentity,
+		sso:          sso,
 	}
 }
 
-// Register creates a new user account with default user role
-func (s *auth) Register(ctx context.Context, input *model.UserCreate) (*model.UserResponse, error) {
-	s.logger.Info("Registering new user", "email", input.Email)
+// генерирует Access Token
+func (s *auth) generateAccessToken(u *model.UserDB, amr string) (string, error) {
+	return s.token.Generate(token.GenerateParams{
+		UserID:     u.ID,
+		Email:      u.Email,
+		Role:       u.Role,
+		Provider:   u.Provider,
+		ProviderID: u.ProviderID,
+		AMR:        []string{amr},
+		AuthTime:   time.Now(),
+	})
+}
+
+// генерирует Refresh Token и сохраняет сессию
+func (s *auth) generateRefreshTokenAndSession(
+	ctx context.Context,
+	userID int,
+	userAgent, ip string,
+) (string, error) {
+	if userAgent == "" {
+		userAgent = "unknown"
+	}
+	if ip == "" {
+		ip = "0.0.0.0"
+	}
+
+	raw, hashBytes, err := s.token.GenerateRefreshToken()
+	if err != nil {
+		return "", err
+	}
+
+	id, err := uuid.NewV7()
+	if err != nil {
+		s.logger.Errorf("generateRefreshTokenAndSession: failed to generate refresh token id: %v", err)
+		return "", err
+	}
+	session := &model.RefreshSession{
+		ID:        id,
+		UserID:    userID,
+		TokenHash: hex.EncodeToString(hashBytes),
+		UserAgent: userAgent,
+		IP:        ip,
+		ExpiresAt: time.Now().Add(s.token.RefreshTTL()),
+	}
+
+	if err = s.refreshRepo.Save(ctx, session); err != nil {
+		return "", err
+	}
+
+	return raw, nil
+}
+
+// выдает полный комплект токенов
+func (s *auth) issueTokens(
+	ctx context.Context,
+	u *model.UserDB,
+	userAgent, ip, amr string,
+) (*model.TokenPair, error) {
+
+	access, err := s.generateAccessToken(u, amr)
+	if err != nil {
+		return nil, err
+	}
+
+	refresh, err := s.generateRefreshTokenAndSession(ctx, u.ID, userAgent, ip)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.TokenPair{
+		AccessToken:  access,
+		RefreshToken: refresh,
+	}, nil
+}
+
+// Register создает нового пользователя
+func (s *auth) Register(ctx context.Context, input *model.UserCreate, userAgent, ip string) (*model.TokenPair, error) {
+	s.logger.Info("Register user", "email", input.Email)
 
 	existing, err := s.authRepo.GetUserByEmail(ctx, input.Email)
 	if err != nil {
-		s.logger.Error("Error checking existing user", "error", err, "email", input.Email)
-		return nil, errors.New("ошибка при проверке существующего пользователя")
+		return nil, ErrInvalidPass
 	}
-
 	if existing != nil {
-		s.logger.Warn("User already exists", "email", input.Email)
-		return nil, errors.New("пользователь с таким email уже существует")
+		return nil, ErrEmailExists
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		s.logger.Error("Failed to hash password", "error", err)
-		return nil, errors.New("ошибка при создании пользователя")
+		return nil, ErrInvalidPass
 	}
+	*input.Password = string(hash)
 
-	input.Password = string(hashedPassword)
-
-	userID, err := s.authRepo.CreateUser(ctx, input)
+	uid, err := s.authRepo.CreateUser(ctx, input)
 	if err != nil {
-		s.logger.Error("Failed to create user", "error", err, "email", input.Email)
-		return nil, errors.New("не удалось создать пользователя")
+		return nil, ErrInvalidPass
 	}
 
-	createdUser, err := s.authRepo.GetUserByID(ctx, userID)
+	u, err := s.authRepo.GetUserByID(ctx, uid)
 	if err != nil {
-		s.logger.Error("Failed to fetch created user", "error", err, "user_id", userID)
-		return nil, errors.New("пользователь создан, но не удалось получить его данные")
+		return nil, ErrUserNotFound
 	}
 
-	response := &model.UserResponse{
-		ID:        createdUser.ID,
-		CreatedAt: createdUser.CreatedAt,
-		UpdatedAt: createdUser.UpdatedAt,
-	}
+	u.Provider = "local"
+	u.ProviderID = fmt.Sprintf("local:%d", u.ID)
 
-	s.logger.Info("User registered successfully", "user_id", userID, "email", input.Email)
-	return response, nil
+	return s.issueTokens(ctx, u, userAgent, ip, "pwd")
 }
 
-// Login authenticates a user and returns a JWT token
-func (s *auth) Login(ctx context.Context, credentials model.UserLogin) (string, error) {
-	s.logger.Info("Login attempt", "email", credentials.Email)
+// Login по email/password
+func (s *auth) Login(ctx context.Context, credentials model.UserLogin, userAgent, ip string) (*model.TokenPair, error) {
+	s.logger.Info("Login", "email", credentials.Email)
 
 	if credentials.Email == "" || credentials.Password == "" {
-		s.logger.Warn("Login attempt with empty email or password")
-		return "", ErrNoFields
+		return nil, ErrNoFields
 	}
 
 	u, err := s.authRepo.GetUserByEmail(ctx, credentials.Email)
 	if err != nil || u == nil {
-		s.logger.Warn("User not found", "email", credentials.Email)
-		return "", ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(credentials.Password)); err != nil {
-		s.logger.Warn("Invalid password", "email", credentials.Email)
-		return "", ErrInvalidCredentials
+	if err = bcrypt.CompareHashAndPassword([]byte(*u.PasswordHash), []byte(credentials.Password)); err != nil {
+		return nil, ErrInvalidPass
 	}
 
-	t, err := s.token.Generate(u.ID, u.Email, u.Role)
-	if err != nil {
-		s.logger.Error("Failed to generate token", "error", err, "user_id", u.ID)
-		return "", err
-	}
-	s.logger.Info("User logged in successfully", "user_id", u.ID, "email", u.Email)
-	return t, nil
+	u.Provider = "local"
+	u.ProviderID = fmt.Sprintf("local:%d", u.ID)
+
+	return s.issueTokens(ctx, u, userAgent, ip, "pwd")
 }
 
-// ValidateToken validates a JWT token and returns the user ID
+// ValidateToken проверяет JWT
 func (s *auth) ValidateToken(tokenString string) (int, error) {
 	claims, err := s.token.Validate(tokenString)
 	if err != nil {
-		s.logger.Warn("Token validation failed", "error", err)
-		return 0, errors.New("недействительный токен")
+		return 0, ErrInvalidCredentials
 	}
 
 	u, err := s.authRepo.GetUserByID(context.Background(), claims.UserID)
 	if err != nil || u == nil {
-		s.logger.Warn("User from token not found", "user_id", claims.UserID)
-		return 0, errors.New("пользователь не найден")
+		return 0, ErrUserNotFound
 	}
 
 	return claims.UserID, nil
+}
+
+// Refresh обновляет токены
+func (s *auth) Refresh(
+	ctx context.Context,
+	rawRefreshToken, userAgent, ip string,
+) (*model.TokenPair, error) {
+
+	hash := sha256.Sum256([]byte(rawRefreshToken))
+	hashHex := hex.EncodeToString(hash[:])
+
+	// 1. Найти сессию
+	session, err := s.refreshRepo.FindByHash(ctx, hashHex)
+	if err != nil {
+		return nil, ErrInvalidRefreshToken
+	}
+
+	// 2. Проверить срок действия
+	if time.Now().After(session.ExpiresAt) {
+		_ = s.refreshRepo.Revoke(ctx, session.ID)
+		return nil, ErrRefreshTokenExpired
+	}
+
+	// 3. Получить пользователя
+	u, err := s.authRepo.GetUserByID(ctx, session.UserID)
+	if err != nil || u == nil {
+		_ = s.refreshRepo.Revoke(ctx, session.ID)
+		return nil, ErrInvalidRefreshToken
+	}
+
+	// 4. Сгенерировать новую пару токенов
+	newTokens, err := s.issueTokens(ctx, u, userAgent, ip, "refresh")
+	if err != nil {
+		return nil, ErrInvalidRefreshToken
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		s.logger.Errorf("generateRefreshTokenAndSession: failed to generate refresh token id: %v", err)
+		return nil, ErrInvalidRefreshToken
+	}
+	newHash := sha256.Sum256([]byte(newTokens.RefreshToken))
+	newHashHex := hex.EncodeToString(newHash[:])
+	// 5. Обновить refresh токен в репозитории транзакционно
+	newSession := &model.RefreshSession{
+		ID:        id,
+		UserID:    u.ID,
+		TokenHash: newHashHex,
+		ExpiresAt: time.Now().Add(s.token.RefreshTTL()),
+		IP:        ip,
+		UserAgent: userAgent,
+	}
+	if err := s.refreshRepo.RefreshToken(ctx, hashHex, newSession); err != nil {
+		return nil, err
+	}
+
+	_ = s.refreshRepo.CleanupExpired(ctx)
+
+	// 6. Вернуть raw токен клиенту
+	return newTokens, nil
+}
+
+// Logout отзывает один конкретный refresh токен
+func (s *auth) Logout(ctx context.Context, rawRefreshToken string) error {
+	hash := sha256.Sum256([]byte(rawRefreshToken))
+	hashHex := hex.EncodeToString(hash[:])
+
+	session, err := s.refreshRepo.FindByHash(ctx, hashHex)
+	if err != nil {
+		return ErrInvalidRefreshToken
+	}
+
+	return s.refreshRepo.Revoke(ctx, session.ID)
+}
+
+// LogoutAll отзывает все токены пользователя
+func (s *auth) LogoutAll(ctx context.Context, userID int) error {
+	return s.refreshRepo.RevokeAllByUser(ctx, userID)
 }

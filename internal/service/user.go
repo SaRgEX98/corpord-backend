@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
-	"time"
-
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository/pg"
 	"corpord-api/model"
+	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -33,29 +31,27 @@ func NewUser(logger *logger.Logger, r pg.UserRepository) User {
 	}
 }
 
-// GetAll returns all users
+// GetAll возвращает всех пользователей
 func (s *user) GetAll(ctx context.Context) ([]*model.UserResponse, error) {
 	responses, err := s.r.GetAll(ctx)
 	if err != nil {
 		s.logger.Errorf("failed to get all users: %v", err)
 		return nil, err
 	}
-
 	return responses, nil
 }
 
-// GetByID returns a user by ID
+// GetByID возвращает пользователя по ID
 func (s *user) GetByID(ctx context.Context, id int) (*model.UserResponse, error) {
 	resp, err := s.r.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Errorf("failed to get user by id %d: %v", id, err)
 		return nil, ErrUserNotFound
 	}
-
 	return resp, nil
 }
 
-// GetByEmail returns a user by email (internal use only)
+// GetByEmail возвращает пользователя по email (для внутреннего использования)
 func (s *user) GetByEmail(ctx context.Context, email string) (*model.UserDB, error) {
 	if email == "" {
 		return nil, errors.New("email cannot be empty")
@@ -64,7 +60,6 @@ func (s *user) GetByEmail(ctx context.Context, email string) (*model.UserDB, err
 	u, err := s.r.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, pg.ErrNotFound) {
-			s.logger.Debugf("user with email %s not found", email)
 			return nil, ErrUserNotFound
 		}
 		s.logger.Errorf("failed to get user by email %s: %v", email, err)
@@ -72,86 +67,89 @@ func (s *user) GetByEmail(ctx context.Context, email string) (*model.UserDB, err
 	}
 
 	if u == nil {
-		s.logger.Debugf("user with email %s not found (nil response)", email)
 		return nil, ErrUserNotFound
 	}
 
 	return u, nil
 }
 
-// Create creates a new user
+// Create создаёт нового пользователя (локального)
 func (s *user) Create(ctx context.Context, userCreate *model.UserCreate) (*model.UserResponse, error) {
-	// Check if email already exists
 	existingUser, err := s.r.GetByEmail(ctx, userCreate.Email)
 	if err == nil && existingUser != nil {
-		s.logger.Warnf("user with email %s already exists", userCreate.Email)
-		return nil, ErrEmailExists
+		// Локальный пользователь уже есть
+		if existingUser.PasswordHash != nil {
+			return nil, ErrEmailExists
+		}
+		// SSO-пользователь с NULL password_hash
+		return nil, ErrEmailExists // или отдельная ошибка, если нужно
+	}
+	if err != nil && !errors.Is(err, pg.ErrNotFound) {
+		return nil, err
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userCreate.Password), bcrypt.DefaultCost)
+	// Хэшируем пароль
+	if userCreate.Password == nil {
+		return nil, errors.New("password required for local user")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*userCreate.Password), bcrypt.DefaultCost)
 	if err != nil {
 		s.logger.Errorf("failed to hash password: %v", err)
 		return nil, err
 	}
+	hashStr := string(hashedPassword)
 
-	// Create user in database
-	userDB := &model.UserDB{
-		Email:        userCreate.Email,
-		PasswordHash: string(hashedPassword),
-		Name:         userCreate.Name,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	// Convert to UserCreate to pass to repository
 	userToCreate := &model.UserCreate{
-		Email:    userDB.Email,
-		Password: userDB.PasswordHash,
-		Name:     userDB.Name,
+		Email:    userCreate.Email,
+		Password: &hashStr,
+		Name:     userCreate.Name,
 	}
 
-	createdUser, err := s.r.Create(ctx, userToCreate)
-	if err != nil {
-		s.logger.Errorf("failed to create user: %v", err)
-		return nil, err
-	}
-
-	return createdUser, nil
+	return s.r.Create(ctx, userToCreate)
 }
 
-// Update updates a user
+// Update обновляет пользователя
 func (s *user) Update(ctx context.Context, id int, update *model.UserUpdate) (*model.UserResponse, error) {
-	// Validate update data
 	if err := update.Validate(); err != nil {
 		return nil, err
 	}
 
-	// If password is being updated, hash the new password
 	if update.Password != nil {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*update.Password), bcrypt.DefaultCost)
 		if err != nil {
 			s.logger.Errorf("failed to hash password: %v", err)
 			return nil, err
 		}
-		hashedPassStr := string(hashedPassword)
-		update.Password = &hashedPassStr
+		hashStr := string(hashedPassword)
+		update.Password = &hashStr
 	}
 
-	updatedUser, err := s.r.Update(ctx, id, update)
+	return s.r.Update(ctx, id, update)
+}
+
+// Delete удаляет пользователя
+func (s *user) Delete(ctx context.Context, id int) error {
+	return s.r.Delete(ctx, id)
+}
+
+// Login проверяет локальные креды пользователя
+func (s *user) Login(ctx context.Context, email, password string) (*model.UserResponse, error) {
+	user, err := s.r.GetByEmail(ctx, email)
 	if err != nil {
-		s.logger.Errorf("failed to update user %d: %v", id, err)
+		if errors.Is(err, pg.ErrNotFound) {
+			return nil, ErrInvalidPass
+		}
 		return nil, err
 	}
 
-	return updatedUser, nil
-}
-
-// Delete deletes a user
-func (s *user) Delete(ctx context.Context, id int) error {
-	if err := s.r.Delete(ctx, id); err != nil {
-		s.logger.Errorf("failed to delete user %d: %v", id, err)
-		return err
+	if user.PasswordHash == nil {
+		return nil, ErrUseSSOLogin
 	}
-	return nil
+
+	if err := bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(password)); err != nil {
+		return nil, ErrInvalidPass
+	}
+
+	return user.ToResponse(), nil
 }

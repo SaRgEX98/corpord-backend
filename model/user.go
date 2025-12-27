@@ -4,13 +4,15 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-// UserCreate представляет данные, необходимые для создания пользователя
+// UserCreate представляет данные для создания пользователя
 type UserCreate struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
-	Name     string `json:"name" binding:"required"`
+	Email    string  `json:"email" binding:"required,email"`
+	Password *string `json:"password,omitempty"` // pointer для nullable
+	Name     string  `json:"name" binding:"required"`
 }
 
 // UserUpdate представляет данные для обновления пользователя
@@ -30,7 +32,6 @@ func (u *UserUpdate) Validate() error {
 		if *u.Email == "" {
 			return errors.New("email не может быть пустым")
 		}
-		// Простая проверка формата email
 		if !strings.Contains(*u.Email, "@") {
 			return errors.New("некорректный формат email")
 		}
@@ -43,32 +44,50 @@ func (u *UserUpdate) Validate() error {
 	return nil
 }
 
-// UserResponse представляет данные пользователя для отображения
-// (без чувствительных данных)
+// UserResponse представляет данные пользователя для отображения (без чувствительных данных)
 type UserResponse struct {
 	ID        int       `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 	Role      string    `json:"role"`
+	UserAgent string    `json:"user_agent"`
+	IP        string    `json:"ip"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// UserLogin представляет данные для аутентификации пользователя
+// UserLogin представляет данные для аутентификации
 type UserLogin struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required"`
+	UserAgent string `json:"user_agent" binding:"required"`
+	IP        string `json:"ip" binding:"required"`
 }
 
 // UserDB представляет модель пользователя в базе данных
 type UserDB struct {
-	ID           int       `db:"id"`
-	Email        string    `db:"email"`
-	PasswordHash string    `db:"password_hash"`
-	Name         string    `db:"name"`
-	Role         string    `db:"role_name"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
+	ID           int        `db:"id"`
+	Email        string     `db:"email"`
+	PasswordHash *string    `db:"password_hash"`
+	Name         string     `db:"name"`
+	Role         string     `db:"role_name"`
+	UserAgent    string     `db:"user_agent"`
+	IP           string     `db:"ip"`
+	Provider     string     `db:"provider"`
+	ProviderID   string     `db:"provider_id"`
+	CreatedAt    time.Time  `db:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at"`
+	DeletedAt    *time.Time `db:"deleted_at"`
+}
+
+// UserIdentity
+type UserIdentity struct {
+	ID         uuid.UUID `db:"id"`
+	UserID     int       `db:"user_id"`
+	Provider   string    `db:"provider"`
+	ProviderID string    `db:"provider_id"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 // ToResponse преобразует UserDB в UserResponse
@@ -78,6 +97,8 @@ func (u *UserDB) ToResponse() *UserResponse {
 		Email:     u.Email,
 		Name:      u.Name,
 		Role:      u.Role,
+		UserAgent: u.UserAgent,
+		IP:        u.IP,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}

@@ -7,8 +7,10 @@ import (
 	"corpord-api/internal/handler"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository"
+	"corpord-api/internal/scheduler"
 	"corpord-api/internal/server"
 	"corpord-api/internal/service"
+	"corpord-api/internal/sso"
 	"corpord-api/internal/token"
 	"corpord-api/pkg/dbx"
 	"errors"
@@ -18,16 +20,18 @@ import (
 )
 
 type App struct {
-	cfg    *config.Config
-	logger *logger.Logger
-	r      *repository.Repository
-	s      *service.Service
-	h      handler.Handler
-	srv    server.Server
-	ctx    context.Context
-	db     *database.Database
-	t      token.Manager
-	qb     *dbx.QueryBuilder
+	cfg       *config.Config
+	logger    *logger.Logger
+	r         *repository.Repository
+	s         *service.Service
+	h         handler.Handler
+	srv       server.Server
+	ctx       context.Context
+	db        *database.Database
+	t         token.Manager
+	qb        *dbx.QueryBuilder
+	sso       *sso.Registry
+	scheduler *scheduler.Scheduler
 }
 
 func New() *App {
@@ -52,7 +56,7 @@ func New() *App {
 	a.logger.Info("initializing application")
 
 	a.db = database.New(context.TODO(), &a.cfg.Database)
-	if a.cfg.Env == "development" {
+	if a.cfg.App.Env == "development" {
 		a.logger.Info("applying database migrations")
 		if err := a.db.Postgres.MigrateUp(context.TODO()); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -68,16 +72,42 @@ func New() *App {
 	a.r = repository.New(a.logger, a.qb)
 
 	a.logger.Info("initializing token manager")
-	a.t = token.NewManager(a.cfg.JWTConfig.Secret, a.cfg.JWTConfig.AccessTokenTTL)
+	a.t = token.NewManager(&a.cfg.JWT)
+
+	a.logger.Info("initializing sso registry")
+	a.sso = sso.NewRegistry()
+
+	google := sso.NewGoogleProvider(
+		a.cfg.SSO.Google.ClientID,
+		a.cfg.SSO.Google.ClientSecret,
+		a.cfg.SSO.Google.RedirectURL,
+	)
+	a.sso.Register("google", google)
+
+	yandex := sso.NewYandexProvider(
+		a.cfg.SSO.Yandex.ClientID,
+		a.cfg.SSO.Yandex.ClientSecret,
+		a.cfg.SSO.Yandex.RedirectURL,
+	)
+	a.sso.Register("yandex", yandex)
 
 	a.logger.Info("initializing service layer")
-	a.s = service.New(a.logger, a.r, a.t)
+	a.s = service.New(a.logger, a.r, a.t, a.sso)
 
 	a.logger.Info("initializing handler layer")
-	a.h = handler.New(a.logger, a.s, a.cfg, a.t)
+	a.h = handler.New(a.logger, a.s, a.cfg, a.t, a.sso)
 
 	a.logger.Info("initializing server")
 	a.srv = server.New(a.h.InitRoutes())
+
+	a.scheduler = scheduler.New(a.logger, time.Minute)
+
+	// Добавляем задачу очистки токенов
+	cleanupTask := scheduler.NewCleanupRefreshTokensTask(a.r.PgRepository.RefreshToken, a.logger)
+	a.scheduler.AddTask(cleanupTask)
+
+	// Запускаем планировщик
+	a.scheduler.Start()
 
 	a.logger.Info("application initialized successfully")
 	return a
@@ -95,6 +125,10 @@ func (a *App) Stop() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	if a.scheduler != nil {
+		a.scheduler.Stop()
+	}
 
 	a.srv.Shutdown(ctx)
 }
