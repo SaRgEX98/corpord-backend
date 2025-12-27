@@ -6,8 +6,10 @@ import (
 	"corpord-api/internal/handler/middleware"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
+	"corpord-api/internal/sso"
 	"corpord-api/internal/token"
 	"corpord-api/model"
+
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
@@ -24,6 +26,7 @@ type handler struct {
 	trip     *Trip
 	tripStop TripStop
 	stop     Stop
+	sso      *SSOHandler
 	logger   *logger.Logger
 	s        *service.Service
 	r        *gin.Engine
@@ -32,10 +35,10 @@ type handler struct {
 }
 
 // New creates a new handler instance with all dependencies
-func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager) Handler {
+func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager, sso *sso.Registry) Handler {
 	return &handler{
 		user:     NewUser(logger, s.User),
-		auth:     NewAuthHandler(s.Auth, logger),
+		auth:     NewAuthHandler(s.Auth, logger, t),
 		bus:      NewBus(logger, s.Bus),
 		bc:       NewBusCategory(logger, s.BC),
 		bs:       NewBusStatus(logger, s.BS),
@@ -44,6 +47,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		trip:     NewTrip(logger, s.Trip),
 		tripStop: NewTripStop(logger, s.TripStop),
 		stop:     NewStop(logger, s.Stop),
+		sso:      NewSSOHandler(logger, s.Auth, sso, t),
 		logger:   logger,
 		s:        s,
 		r:        gin.Default(),
@@ -64,6 +68,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 	{
 		// Public routes - no authentication required
 		RegisterAuthRoutes(v1, h.auth)
+		h.sso.RegisterRoutes(v1)
 		bus := v1.Group("/bus")
 		{
 			bus.GET("/", h.bus.GetAllBuses)

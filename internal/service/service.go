@@ -3,6 +3,7 @@ package service
 import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository"
+	"corpord-api/internal/sso"
 	"corpord-api/internal/token"
 )
 
@@ -23,12 +24,12 @@ type Service struct {
 }
 
 // New creates a new service instance with all dependencies
-func New(logger *logger.Logger, repo *repository.Repository, token token.Manager) *Service {
+func New(logger *logger.Logger, repo *repository.Repository, token token.Manager, sso *sso.Registry) *Service {
 	return &Service{
 		logger:   logger,
 		token:    token,
 		User:     NewUser(logger, repo.PgRepository.User),
-		Auth:     NewAuth(logger, token, repo.PgRepository.Auth),
+		Auth:     NewAuth(logger, token, repo.PgRepository.Auth, repo.PgRepository.RefreshToken, repo.PgRepository.UserIdentity, sso),
 		Bus:      NewBus(logger, repo.PgRepository.Bus),
 		BC:       NewBusCategory(logger, repo.PgRepository.Bc),
 		BS:       NewBusStatus(logger, repo.PgRepository.Bs),

@@ -72,8 +72,6 @@ func (r *authRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 		"u.created_at",
 		"u.updated_at",
 		"u.deleted_at",
-		"u.ip",
-		"u.user_agent",
 	).
 		From("users u").
 		Join("roles r ON u.role_id = r.id").
@@ -108,6 +106,7 @@ func (r *authRepository) GetUserByID(ctx context.Context, id int) (*model.UserDB
 		"r.name as role_name",
 		"u.created_at",
 		"u.updated_at",
+		"u.deleted_at",
 	).
 		From("users u").
 		Join("roles r ON u.role_id = r.id").

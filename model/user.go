@@ -2,9 +2,10 @@ package model
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // UserCreate представляет данные для создания пользователя
@@ -65,24 +66,25 @@ type UserLogin struct {
 
 // UserDB представляет модель пользователя в базе данных
 type UserDB struct {
-	ID           int       `db:"id"`
-	Email        string    `db:"email"`
-	PasswordHash *string   `db:"password_hash"` // nullable для SSO
-	Name         string    `db:"name"`
-	Role         string    `db:"role_name"`
-	UserAgent    string    `db:"user_agent"`
-	IP           string    `db:"ip"`
-	Provider     string    `db:"provider.go"`
-	ProviderID   string    `db:"provider_id"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
+	ID           int        `db:"id"`
+	Email        string     `db:"email"`
+	PasswordHash *string    `db:"password_hash"`
+	Name         string     `db:"name"`
+	Role         string     `db:"role_name"`
+	UserAgent    string     `db:"user_agent"`
+	IP           string     `db:"ip"`
+	Provider     string     `db:"provider"`
+	ProviderID   string     `db:"provider_id"`
+	CreatedAt    time.Time  `db:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at"`
+	DeletedAt    *time.Time `db:"deleted_at"`
 }
 
 // UserIdentity
 type UserIdentity struct {
 	ID         uuid.UUID `db:"id"`
 	UserID     int       `db:"user_id"`
-	Provider   string    `db:"provider.go"`
+	Provider   string    `db:"provider"`
 	ProviderID string    `db:"provider_id"`
 	CreatedAt  time.Time `db:"created_at"`
 	UpdatedAt  time.Time `db:"updated_at"`

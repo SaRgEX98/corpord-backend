@@ -3,7 +3,6 @@ package sso
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -15,17 +14,8 @@ type GoogleProvider struct {
 	config *oauth2.Config
 }
 
-// реализация абстрактного токена, основанная на oauth2.Token
-type googleToken struct {
-	token *oauth2.Token
-}
-
-func (t googleToken) AccessToken() string {
-	return t.token.AccessToken
-}
-
 // конструктор провайдера
-func NewGoogleProvider(clientID, clientSecret, redirectURL string) *GoogleProvider {
+func NewGoogleProvider(clientID, clientSecret, redirectURL string) Provider {
 	return &GoogleProvider{
 		config: &oauth2.Config{
 			ClientID:     clientID,
@@ -47,12 +37,12 @@ func (g *GoogleProvider) AuthURL(state string) string {
 }
 
 // обмен кода на токен
-func (g *GoogleProvider) Exchange(ctx context.Context, code string) (Token, error) {
+func (g *GoogleProvider) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 	tok, err := g.config.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
-	return googleToken{token: tok}, nil
+	return tok, nil
 }
 
 // структура ответа Google API
@@ -64,14 +54,9 @@ type googleUser struct {
 	Picture       string `json:"picture"`
 }
 
-func (g *GoogleProvider) GetUserInfo(ctx context.Context, token Token) (*UserInfo, error) {
-	access := token.AccessToken()
-	if access == "" {
-		return nil, errors.New("empty google access token")
-	}
-
+func (g *GoogleProvider) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserInfo, error) {
 	req, _ := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
-	req.Header.Set("Authorization", "Bearer "+access)
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -90,4 +75,9 @@ func (g *GoogleProvider) GetUserInfo(ctx context.Context, token Token) (*UserInf
 		Email:      gu.Email,
 		Name:       gu.Name,
 	}, nil
+}
+
+// Config возвращает oauth2 конфигурацию
+func (g *GoogleProvider) Config() *oauth2.Config {
+	return g.config
 }
