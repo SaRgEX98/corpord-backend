@@ -179,7 +179,8 @@ func (h *handler) InitRoutes() *gin.Engine {
 			// User management
 			users := authorized.Group("/users")
 			{
-				users.GET("", h.user.All)           // Get all users
+				users.GET("", h.user.All) // Get all users
+				users.GET("/me", h.user.Me)
 				users.GET("/:id", h.user.Get)       // Get user by ID
 				users.POST("", h.user.Create)       // Create user (kept for backward compatibility)
 				users.DELETE("/:id", h.user.Delete) // Delete user
