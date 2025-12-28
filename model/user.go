@@ -60,8 +60,8 @@ type UserResponse struct {
 type UserLogin struct {
 	Email     string `json:"email" binding:"required,email"`
 	Password  string `json:"password" binding:"required"`
-	UserAgent string `json:"user_agent" binding:"required"`
-	IP        string `json:"ip" binding:"required"`
+	UserAgent string `json:"user_agent"`
+	IP        string `json:"ip"`
 }
 
 // UserDB представляет модель пользователя в базе данных
