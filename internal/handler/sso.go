@@ -86,6 +86,7 @@ func (h *SSOHandler) callbackFromProvider(c *gin.Context) {
 
 	helper.SetRefreshCookie(c, resp.RefreshToken, h.t.RefreshTTL())
 	c.JSON(http.StatusOK, model.TokenResponse{AccessToken: resp.AccessToken})
+	c.Redirect(http.StatusFound, "http://localhost:3000/auth/callback")
 }
 
 func (h *SSOHandler) RegisterRoutes(r *gin.RouterGroup) {
