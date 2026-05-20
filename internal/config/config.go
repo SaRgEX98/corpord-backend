@@ -96,6 +96,15 @@ type OAuthProvider struct {
 	Enabled      bool   `mapstructure:"enabled"`
 }
 
+func GetConfigPath() string {
+	path := os.Getenv("CONFIG_PATH")
+	if path != "" {
+		return path
+	}
+
+	return "./configs/config.yaml"
+}
+
 func Load(path string) (*Config, error) {
 	v := viper.New()
 	v.SetConfigType("yaml")
