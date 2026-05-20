@@ -3,42 +3,41 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/spf13/viper"
 )
 
 type Config struct {
-	App      App      `mapstructure:"app"`
-	Database Database `mapstructure:"database"`
-	Logger   Logger   `mapstructure:"logger"`
-	HTTP     HTTP     `mapstructure:"http"`
-	JWT      JWT      `mapstructure:"jwt"`
-	SSO      SSO      `mapstructure:"sso"`
+	App      App
+	Database Database
+	Logger   Logger
+	HTTP     HTTP
+	JWT      JWT
+	SSO      SSO
 }
 
 type App struct {
-	Env      string `mapstructure:"env"`
-	Name     string `mapstructure:"name"`
-	Debug    bool   `mapstructure:"debug"`
-	TimeZone string `mapstructure:"timezone"`
+	Env      string
+	Name     string
+	Debug    bool
+	TimeZone string
 }
 
 type Database struct {
-	Postgres Postgres `mapstructure:"postgres"`
-	Redis    Redis    `mapstructure:"redis"`
+	Postgres Postgres
+	Redis    Redis
 }
 
 type Postgres struct {
-	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
-	MaxConns int    `mapstructure:"max_conns"`
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
+	MaxConns int
 }
 
 func (p *Postgres) DSN() string {
@@ -49,151 +48,172 @@ func (p *Postgres) DSN() string {
 }
 
 type Redis struct {
-	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
+	Host     string
+	Port     string
+	Password string
+	DB       int
 }
 
 type Logger struct {
-	Level        string `mapstructure:"level"`         // Уровень логирования (debug, info, warn, error, dpanic, panic, fatal)
-	Encoding     string `mapstructure:"encoding"`      // Формат вывода (console, json)
-	OutputPaths  string `mapstructure:"output_paths"`  // Пути для вывода логов (через запятую)
-	ErrorOutput  string `mapstructure:"error_output"`  // Путь для вывода ошибок
-	EnableCaller bool   `mapstructure:"enable_caller"` // Включить информацию о вызывающем коде
-	EnableStack  bool   `mapstructure:"enable_stack"`  // Включить стектрейс для ошибок
-	MaxSize      int    `mapstructure:"max_size"`      // Максимальный размер лог-файла в МБ
-	MaxBackups   int    `mapstructure:"max_backups"`   // Максимальное количество старых лог-файлов
-	MaxAge       int    `mapstructure:"max_age"`       // Максимальное время хранения логов в днях
-	Compress     bool   `mapstructure:"compress"`      // Сжимать старые логи
-	LogToFile    bool   `mapstructure:"log_to_file"`   // Писать логи в файл
-	LogDirectory string `mapstructure:"log_directory"` // Директория для хранения логов
+	Level        string
+	Encoding     string
+	OutputPaths  string
+	ErrorOutput  string
+	EnableCaller bool
+	EnableStack  bool
+	MaxSize      int
+	MaxBackups   int
+	MaxAge       int
+	Compress     bool
+	LogToFile    bool
+	LogDirectory string
 }
 
 type HTTP struct {
-	Port         int           `mapstructure:"port"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
+	Port         int
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
 }
 
 type JWT struct {
-	Secret           string        `mapstructure:"secret"`
-	AccessTokenTTL   time.Duration `mapstructure:"access_token_ttl"`
-	RefreshTokenTTL  time.Duration `mapstructure:"refresh_token_ttl"`
-	SigningAlgorithm string        `mapstructure:"signing_algorithm"`
+	Secret           string
+	AccessTokenTTL   time.Duration
+	RefreshTokenTTL  time.Duration
+	SigningAlgorithm string
 }
 
 type SSO struct {
-	Google OAuthProvider `mapstructure:"google"`
-	Yandex OAuthProvider `mapstructure:"yandex"`
+	Google OAuthProvider
+	Yandex OAuthProvider
 }
 
 type OAuthProvider struct {
-	ClientID     string `mapstructure:"client_id"`
-	ClientSecret string `mapstructure:"client_secret"`
-	RedirectURL  string `mapstructure:"redirect_url"`
-	Enabled      bool   `mapstructure:"enabled"`
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	Enabled      bool
 }
 
-func GetConfigPath() string {
-	path := os.Getenv("CONFIG_PATH")
-	if path != "" {
-		return path
+func Load() (*Config, error) {
+	// dev only
+	_ = godotenv.Load()
+
+	cfg := &Config{
+		App: App{
+			Env:      getEnv("APP_ENV", "development"),
+			Name:     getEnv("APP_NAME", "corpord-api"),
+			Debug:    getBool("APP_DEBUG", true),
+			TimeZone: getEnv("APP_TIMEZONE", "UTC"),
+		},
+
+		Database: Database{
+			Postgres: Postgres{
+				Host:     getEnv("DB_POSTGRES_HOST", "localhost"),
+				Port:     getEnv("DB_POSTGRES_PORT", "5432"),
+				User:     getEnv("DB_POSTGRES_USER", "postgres"),
+				Password: getEnv("DB_POSTGRES_PASSWORD", ""),
+				DBName:   getEnv("DB_POSTGRES_NAME", "corpord"),
+				SSLMode:  getEnv("DB_POSTGRES_SSLMODE", "disable"),
+				MaxConns: getInt("DB_POSTGRES_MAX_CONNS", 10),
+			},
+
+			Redis: Redis{
+				Host:     getEnv("DB_REDIS_HOST", "localhost"),
+				Port:     getEnv("DB_REDIS_PORT", "6379"),
+				Password: getEnv("DB_REDIS_PASSWORD", ""),
+				DB:       getInt("DB_REDIS_DB", 0),
+			},
+		},
+
+		Logger: Logger{
+			Level:        getEnv("LOG_LEVEL", "debug"),
+			Encoding:     getEnv("LOG_ENCODING", "console"),
+			OutputPaths:  getEnv("LOG_OUTPUT_PATHS", "stdout"),
+			ErrorOutput:  getEnv("LOG_ERROR_OUTPUT", "stderr"),
+			EnableCaller: getBool("LOG_ENABLE_CALLER", true),
+			EnableStack:  getBool("LOG_ENABLE_STACK", true),
+			MaxSize:      getInt("LOG_MAX_SIZE", 100),
+			MaxBackups:   getInt("LOG_MAX_BACKUPS", 5),
+			MaxAge:       getInt("LOG_MAX_AGE", 30),
+			Compress:     getBool("LOG_COMPRESS", true),
+			LogToFile:    getBool("LOG_TO_FILE", false),
+			LogDirectory: getEnv("LOG_DIRECTORY", "./logs"),
+		},
+
+		HTTP: HTTP{
+			Port:         getInt("HTTP_PORT", 8080),
+			ReadTimeout:  getDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+			WriteTimeout: getDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+			IdleTimeout:  getDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
+		},
+
+		JWT: JWT{
+			Secret:           getEnv("JWT_SECRET", ""),
+			AccessTokenTTL:   getDuration("JWT_ACCESS_TTL", 15*time.Minute),
+			RefreshTokenTTL:  getDuration("JWT_REFRESH_TTL", 720*time.Hour),
+			SigningAlgorithm: getEnv("JWT_SIGNING_ALGORITHM", "HS256"),
+		},
+
+		SSO: SSO{
+			Google: OAuthProvider{
+				ClientID:     getEnv("SSO_GOOGLE_CLIENT_ID", ""),
+				ClientSecret: getEnv("SSO_GOOGLE_CLIENT_SECRET", ""),
+				RedirectURL:  getEnv("SSO_GOOGLE_REDIRECT_URL", ""),
+				Enabled:      getBool("SSO_GOOGLE_ENABLED", false),
+			},
+			Yandex: OAuthProvider{
+				ClientID:     getEnv("SSO_YANDEX_CLIENT_ID", ""),
+				ClientSecret: getEnv("SSO_YANDEX_CLIENT_SECRET", ""),
+				RedirectURL:  getEnv("SSO_YANDEX_REDIRECT_URL", ""),
+				Enabled:      getBool("SSO_YANDEX_ENABLED", false),
+			},
+		},
 	}
 
-	return "./configs/config.yaml"
+	return cfg, nil
 }
 
-func Load(path string) (*Config, error) {
-	v := viper.New()
-	v.SetConfigType("yaml")
-
-	// Load dotenv only in dev
-	if _, err := os.Stat(".env"); err == nil {
-		godotenv.Load()
+func getEnv(key, def string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
 	}
-
-	// Read config file
-	if path != "" {
-		v.SetConfigFile(path)
-		if err := v.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("failed to read config: %w", err)
-		}
-	}
-
-	// ENV support
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	bindEnvs(v)
-
-	setDefaults(v)
-
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	return &cfg, nil
+	return v
 }
 
-func bindEnvs(v *viper.Viper) {
-	// JWT
-	v.BindEnv("jwt.secret", "JWT_SECRET")
-
-	// Postgres
-	v.BindEnv("database.postgres.host", "DB_HOST")
-	v.BindEnv("database.postgres.port", "DB_PORT")
-	v.BindEnv("database.postgres.user", "DB_USER")
-	v.BindEnv("database.postgres.password", "DB_PASSWORD")
-	v.BindEnv("database.postgres.dbname", "DB_NAME")
-	v.BindEnv("database.postgres.sslmode", "DB_SSLMODE")
-
-	// Redis
-	v.BindEnv("database.redis.host", "REDIS_HOST")
-	v.BindEnv("database.redis.port", "REDIS_PORT")
-	v.BindEnv("database.redis.password", "REDIS_PASSWORD")
-	v.BindEnv("database.redis.db", "REDIS_DB")
-
-	// SSO Google
-	v.BindEnv("sso.google.client_id", "SSO_GOOGLE_CLIENT_ID")
-	v.BindEnv("sso.google.client_secret", "SSO_GOOGLE_CLIENT_SECRET")
-	v.BindEnv("sso.google.redirect_url", "SSO_GOOGLE_REDIRECT_URL")
-	v.BindEnv("sso.google.enabled", "SSO_GOOGLE_ENABLED")
-
-	// SSO Yandex
-	v.BindEnv("sso.yandex.client_id", "SSO_YANDEX_CLIENT_ID")
-	v.BindEnv("sso.yandex.client_secret", "SSO_YANDEX_CLIENT_SECRET")
-	v.BindEnv("sso.yandex.redirect_url", "SSO_YANDEX_REDIRECT_URL")
-	v.BindEnv("sso.yandex.enabled", "SSO_YANDEX_ENABLED")
+func getBool(key string, def bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return def
+	}
+	return b
 }
 
-func setDefaults(v *viper.Viper) {
-	v.SetDefault("app.env", "development")
-	v.SetDefault("app.name", "corpord-api")
-	v.SetDefault("app.debug", true)
-	v.SetDefault("app.timezone", "UTC")
+func getInt(key string, def int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return i
+}
 
-	v.SetDefault("database.postgres.port", "5432")
-	v.SetDefault("database.postgres.sslmode", "disable")
-	v.SetDefault("database.postgres.max_conns", 10)
-
-	v.SetDefault("database.redis.port", "6379")
-	v.SetDefault("database.redis.db", 0)
-
-	v.SetDefault("logger.level", "debug")
-	v.SetDefault("logger.encoding", "console")
-
-	v.SetDefault("http.port", 8080)
-	v.SetDefault("http.read_timeout", "10s")
-	v.SetDefault("http.write_timeout", "10s")
-	v.SetDefault("http.idle_timeout", "60s")
-
-	v.SetDefault("jwt.access_token_ttl", "15m")
-	v.SetDefault("jwt.refresh_token_ttl", "720h")
-	v.SetDefault("jwt.signing_algorithm", "HS256")
-
-	v.SetDefault("sso.google.enabled", false)
-	v.SetDefault("sso.yandex.enabled", false)
+func getDuration(key string, def time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return def
+	}
+	return d
 }
