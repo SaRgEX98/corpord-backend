@@ -1,5 +1,5 @@
 # Переменные окружения
-POSTGRES_DSN=postgres://postgres:1234@localhost:5432/corpord?sslmode=disable
+POSTGRES_DSN=postgres://postgres:123@localhost:5432/corpord?sslmode=disable
 MIGRATIONS_DIR=db/migrations
 BINARY_NAME=app
 
@@ -23,7 +23,10 @@ migrate-up:
 	goose -dir $(MIGRATIONS_DIR) postgres "$(POSTGRES_DSN)" up
 
 migrate-down:
-	goose -dir $(MIGRINGS_DIR) postgres "$(POSTGRES_DSN)" down
+	goose -dir $(MIGRATIONS_DIR) postgres "$(POSTGRES_DSN)" down
+
+migrate-reset:
+	goose -dir $(MIGRATIONS_DIR) postgres "$(POSTGRES_DSN)" reset
 
 migrate-create:
 	@read -p "Введите название миграции: " name; \
