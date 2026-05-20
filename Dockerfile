@@ -25,7 +25,6 @@ RUN apk add --no-cache ca-certificates
 COPY --from=builder /app/server .
 COPY --from=builder /app/migrate .
 
-COPY configs ./configs
 COPY db/migrations ./db/migrations
 
 COPY docs ./docs
