@@ -36,8 +36,8 @@ type App struct {
 
 func New() *App {
 	a := &App{}
-
-	cfg, err := config.Load("./configs/config.yaml")
+	configPath := config.GetConfigPath()
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		log.Fatalf("couldn't load config: %v", err)
 	}
