@@ -1,5 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
+CREATE EXTENSION "uuid-ossp";
+
 CREATE TABLE refresh_tokens
 (
     id         UUID PRIMARY KEY   DEFAULT uuid_generate_v4(),
@@ -17,4 +19,5 @@ CREATE TABLE refresh_tokens
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE refresh_tokens;
+DROP EXTENSION "uuid-ossp"
 -- +goose StatementEnd
