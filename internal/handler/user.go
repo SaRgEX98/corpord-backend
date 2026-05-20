@@ -226,3 +226,57 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
+// Me возвращает информацию о текущем пользователе
+// @Summary Получить информацию о текущем пользователе
+// @Description Возвращает информацию о текущем аутентифицированном пользователе
+// @Tags users
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} model.UserResponse "Данные пользователя"
+// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
+// @Failure 404 {object} apperrors.ErrorResponse "Пользователь не найден"
+// @Router /me [get]
+func (h *UserHandler) Me(c *gin.Context) {
+	start := time.Now()
+	h.logger.Info("handling get current user request")
+
+	// Получаем ID пользователя из контекста (устанавливается в middleware аутентификации)
+	userID, exists := c.Get("userID")
+	if !exists {
+		h.logger.Error("user ID not found in context")
+		c.JSON(http.StatusUnauthorized, apperrors.ErrorResponse{
+			Error: "Требуется аутентификация",
+		})
+		return
+	}
+
+	// Преобразуем ID в int
+	id, ok := userID.(int)
+	if !ok {
+		h.logger.Error("invalid user ID type in context")
+		c.JSON(http.StatusInternalServerError, apperrors.ErrorResponse{
+			Error: "Ошибка сервера",
+		})
+		return
+	}
+
+	// Получаем пользователя из сервиса
+	user, err := h.s.GetByID(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Errorf("failed to get user: %v", err)
+		if errors.Is(err, apperrors.ErrNotFound) {
+			c.JSON(http.StatusNotFound, apperrors.ErrorResponse{
+				Error: "Пользователь не найден",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, apperrors.ErrorResponse{
+			Error: "Не удалось получить информацию о пользователе",
+		})
+		return
+	}
+
+	h.logger.Infof("user data retrieved in %v", time.Since(start))
+	c.JSON(http.StatusOK, user)
+}

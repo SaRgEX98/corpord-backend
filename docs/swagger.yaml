@@ -99,6 +99,29 @@ definitions:
       name:
         type: string
     type: object
+  model.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.SSOLoginRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      provider:
+        type: string
+      provider_id:
+        type: string
+    required:
+    - email
+    - name
+    - provider
+    - provider_id
+    type: object
   model.Stop:
     properties:
       address:
@@ -130,6 +153,8 @@ definitions:
   model.TokenResponse:
     properties:
       access_token:
+        type: string
+      refresh_token:
         type: string
     type: object
   model.Trip:
@@ -187,7 +212,7 @@ definitions:
       id:
         type: integer
       price_to_next:
-        type: integer
+        type: number
       stop_id:
         type: integer
       stop_order:
@@ -202,7 +227,7 @@ definitions:
       departure_time:
         type: string
       price_to_next:
-        type: integer
+        type: number
       stop_id:
         type: integer
       stop_order:
@@ -238,22 +263,27 @@ definitions:
       name:
         type: string
       password:
-        minLength: 8
+        description: pointer для nullable
         type: string
     required:
     - email
     - name
-    - password
     type: object
   model.UserLogin:
     properties:
       email:
         type: string
+      ip:
+        type: string
       password:
+        type: string
+      user_agent:
         type: string
     required:
     - email
+    - ip
     - password
+    - user_agent
     type: object
   model.UserResponse:
     properties:
@@ -263,11 +293,15 @@ definitions:
         type: string
       id:
         type: integer
+      ip:
+        type: string
       name:
         type: string
       role:
         type: string
       updated_at:
+        type: string
+      user_agent:
         type: string
     type: object
   model.UserUpdate:
@@ -1434,6 +1468,40 @@ paths:
       summary: Аутентификация пользователя
       tags:
       - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Получение нового access и refresh токенов
+      parameters:
+      - description: Refresh токен
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Новые токены
+          schema:
+            $ref: '#/definitions/model.TokenResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Просроченный или недействительный токен
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Обновление токена
+      tags:
+      - auth
   /auth/register:
     post:
       consumes:
@@ -1466,6 +1534,41 @@ paths:
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       summary: Регистрация нового пользователя
+      tags:
+      - auth
+  /auth/sso/login:
+    post:
+      consumes:
+      - application/json
+      description: Вход пользователя через стороннего провайдера (Google, GitHub и
+        др.)
+      parameters:
+      - description: Данные для SSO входа
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.SSOLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный вход
+          schema:
+            $ref: '#/definitions/model.TokenResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Ошибка авторизации через SSO
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Аутентификация через SSO
       tags:
       - auth
   /bus/categories:

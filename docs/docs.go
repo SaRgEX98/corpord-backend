@@ -1793,6 +1793,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/refresh": {
+            "post": {
+                "description": "Получение нового access и refresh токенов",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Обновление токена",
+                "parameters": [
+                    {
+                        "description": "Refresh токен",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.RefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Новые токены",
+                        "schema": {
+                            "$ref": "#/definitions/model.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Просроченный или недействительный токен",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/register": {
             "post": {
                 "description": "Создает нового пользователя в системе",
@@ -1832,6 +1884,58 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Пользователь уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/sso/login": {
+            "post": {
+                "description": "Вход пользователя через стороннего провайдера (Google, GitHub и др.)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Аутентификация через SSO",
+                "parameters": [
+                    {
+                        "description": "Данные для SSO входа",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.SSOLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешный вход",
+                        "schema": {
+                            "$ref": "#/definitions/model.TokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Ошибка авторизации через SSO",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2626,6 +2730,40 @@ const docTemplate = `{
                 }
             }
         },
+        "model.RefreshRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.SSOLoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "provider.go",
+                "provider_id"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider.go": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                }
+            }
+        },
         "model.Stop": {
             "type": "object",
             "properties": {
@@ -2673,6 +2811,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
                     "type": "string"
                 }
             }
@@ -2758,7 +2899,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "price_to_next": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "stop_id": {
                     "type": "integer"
@@ -2781,7 +2922,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "price_to_next": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "stop_id": {
                     "type": "integer"
@@ -2830,8 +2971,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
-                "name",
-                "password"
+                "name"
             ],
             "properties": {
                 "email": {
@@ -2841,8 +2981,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
-                    "type": "string",
-                    "minLength": 8
+                    "description": "pointer для nullable",
+                    "type": "string"
                 }
             }
         },
@@ -2850,13 +2990,21 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
-                "password"
+                "ip",
+                "password",
+                "user_agent"
             ],
             "properties": {
                 "email": {
                     "type": "string"
                 },
+                "ip": {
+                    "type": "string"
+                },
                 "password": {
+                    "type": "string"
+                },
+                "user_agent": {
                     "type": "string"
                 }
             }
@@ -2873,6 +3021,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "ip": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2880,6 +3031,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "user_agent": {
                     "type": "string"
                 }
             }

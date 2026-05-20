@@ -10,4 +10,5 @@ const (
 	TableTrip          = "trips"
 	TableTripStop      = "trip_stops"
 	TableStop          = "stops"
+	TableRefreshToken  = "refresh_tokens"
 )
