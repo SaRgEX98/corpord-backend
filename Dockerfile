@@ -30,8 +30,6 @@ COPY db/migrations ./db/migrations
 
 COPY docs ./docs
 
-RUN ls -la /app
-RUN ls -la /app/configs
 RUN adduser -D appuser
 USER appuser
 
