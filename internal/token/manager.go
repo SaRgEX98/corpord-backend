@@ -24,7 +24,7 @@ type manager struct {
 	cfg *config.JWT
 }
 
-// Parameters for generating JWT (supports SSO)
+// GenerateParams for generating JWT (supports SSO)
 type GenerateParams struct {
 	UserID     int
 	Email      string
@@ -35,7 +35,7 @@ type GenerateParams struct {
 	AuthTime   time.Time
 }
 
-// Create token manager
+// NewManager token manager
 func NewManager(cfg *config.JWT) Manager {
 	m := &manager{cfg: cfg}
 	m.mapSigningMethod()
@@ -61,7 +61,7 @@ func (m *manager) Generate(params GenerateParams) (string, error) {
 	return token.SignedString([]byte(m.cfg.Secret))
 }
 
-// Generate refresh token and its hash
+// GenerateRefreshToken refresh token and its hash
 func (m *manager) GenerateRefreshToken() (string, []byte, error) {
 	b := make([]byte, 32) // 256-bit token
 	if _, err := rand.Read(b); err != nil {
@@ -102,11 +102,11 @@ func (m *manager) Validate(tokenString string) (*model.Claims, error) {
 	return claims, nil
 }
 
-// Token TTL getters
+// AccessTTL TTL getters
 func (m *manager) AccessTTL() time.Duration  { return m.cfg.AccessTokenTTL }
 func (m *manager) RefreshTTL() time.Duration { return m.cfg.RefreshTokenTTL }
 
-// Map algorithm from config to JWT signing method
+// mapSigningMethod algorithm from config to JWT signing method
 func (m *manager) mapSigningMethod() jwt.SigningMethod {
 	switch m.cfg.SigningAlgorithm {
 	case "HS256":
