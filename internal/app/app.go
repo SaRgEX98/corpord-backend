@@ -14,6 +14,7 @@ import (
 	"corpord-api/internal/token"
 	"corpord-api/pkg/dbx"
 	"errors"
+	"github.com/gin-gonic/gin"
 	"log"
 	"syscall"
 	"time"
@@ -46,11 +47,6 @@ func New() *App {
 	if err != nil {
 		log.Fatalf("couldn't initialize logger: %v", err)
 	}
-	defer func() {
-		if err := a.logger.Sync(); err != nil && !errors.Is(err, syscall.ENOTSUP) && !errors.Is(err, syscall.EINVAL) {
-			log.Printf("failed to sync logger: %v", err)
-		}
-	}()
 
 	a.logger.Info("initializing application")
 
@@ -76,28 +72,37 @@ func New() *App {
 	a.logger.Info("initializing sso registry")
 	a.sso = sso.NewRegistry()
 
-	google := sso.NewGoogleProvider(
-		a.cfg.SSO.Google.ClientID,
-		a.cfg.SSO.Google.ClientSecret,
-		a.cfg.SSO.Google.RedirectURL,
-	)
-	a.sso.Register("google", google)
+	if a.cfg.SSO.Google.Enabled {
+		google := sso.NewGoogleProvider(
+			a.cfg.SSO.Google.ClientID,
+			a.cfg.SSO.Google.ClientSecret,
+			a.cfg.SSO.Google.RedirectURL,
+		)
+		a.sso.Register("google", google)
+	}
 
-	yandex := sso.NewYandexProvider(
-		a.cfg.SSO.Yandex.ClientID,
-		a.cfg.SSO.Yandex.ClientSecret,
-		a.cfg.SSO.Yandex.RedirectURL,
-	)
-	a.sso.Register("yandex", yandex)
+	if a.cfg.SSO.Yandex.Enabled {
+		yandex := sso.NewYandexProvider(
+			a.cfg.SSO.Yandex.ClientID,
+			a.cfg.SSO.Yandex.ClientSecret,
+			a.cfg.SSO.Yandex.RedirectURL,
+		)
+		a.sso.Register("yandex", yandex)
+	}
 
 	a.logger.Info("initializing service layer")
 	a.s = service.New(a.logger, a.r, a.t, a.sso)
 
 	a.logger.Info("initializing handler layer")
-	a.h = handler.New(a.logger, a.s, a.cfg, a.t, a.sso)
+	if a.cfg.App.Env == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	a.h = handler.New(a.logger, a.s, a.cfg, a.t, a.sso,
+		handler.WithSSOStateStore(sso.NewRedisStateStore(a.db.Redis.Client())),
+		handler.WithSSOFrontendURL(cfg.FrontendURL))
 
 	a.logger.Info("initializing server")
-	a.srv = server.New(a.h.InitRoutes())
+	a.srv = server.New(a.h.InitRoutes(), &cfg.HTTP)
 
 	a.scheduler = scheduler.New(a.logger, time.Hour)
 
@@ -119,9 +124,6 @@ func (a *App) Start() error {
 
 func (a *App) Stop() {
 	a.logger.Info("shutting down application")
-	if err := a.logger.Sync(); err != nil {
-		log.Printf("failed to sync logger: %v", err)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -129,5 +131,13 @@ func (a *App) Stop() {
 		a.scheduler.Stop()
 	}
 
-	a.srv.Shutdown(ctx)
+	if err := a.srv.Shutdown(ctx); err != nil {
+		a.logger.Errorf("HTTP shutdown: %v", err)
+	}
+	if a.db != nil {
+		a.db.Close()
+	}
+	if err := a.logger.Sync(); err != nil && !errors.Is(err, syscall.ENOTSUP) && !errors.Is(err, syscall.EINVAL) {
+		log.Printf("failed to sync logger: %v", err)
+	}
 }

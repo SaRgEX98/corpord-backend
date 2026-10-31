@@ -7,7 +7,6 @@ import (
 	"corpord-api/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 type Driver struct {
@@ -22,154 +21,135 @@ func NewDriver(logger *logger.Logger, s service.Driver) *Driver {
 	}
 }
 
-// All retrieves a list of all drivers
-// @Summary Получить список всех водителей
-// @Description Возвращает список всех водителей в системе
-// @Tags drivers
+// @Summary Получить список водителей
+// @Description Возвращает список водителей с идентификаторами записей.
+// @Tags driver
 // @Produce json
-// @Success 200 {array} model.Driver "Список водителей"
+// @Success 200 {array} model.DriverOutput "Успешный ответ"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /driver [get]
+// @Router /driver/ [get]
 func (h *Driver) All(c *gin.Context) {
-	drivers, err := h.s.All(c.Request.Context())
+	output, err := h.s.All(c.Request.Context())
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, apperrors.ErrInternal.Message)
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, drivers)
+	c.JSON(http.StatusOK, output)
 }
 
-// ByID retrieves a single driver by ID
-// @Summary Получить водителя по ID
-// @Description Возвращает информацию о водителе по его идентификатору
-// @Tags drivers
+// @Summary Получить запись водителя
+// @Description Возвращает данные водителя по ID.
+// @Tags driver
 // @Produce json
-// @Param id path int true "ID водителя"
-// @Success 200 {object} model.Driver "Данные водителя"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 200 {object} model.DriverOutput "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /driver/{id} [get]
 func (h *Driver) ByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-	driver, err := h.s.ByID(c.Request.Context(), id)
+	output, err := h.s.ByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrNotFound.Status, err)
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, driver)
+	c.JSON(http.StatusOK, output)
 }
 
-// Create creates a new driver (Admin only)
-// @Summary Создать нового водителя (только админ)
-// @Description Создает новую запись о водителе (требуются права администратора)
-// @Security Bearer
+// @Summary Создать запись водителя
+// @Description Создает запись водителя. Требуется роль admin.
 // @Tags admin/driver
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Param input body model.DriverInput true "Данные водителя"
-// @Success 201 {object} apperrors.SuccessResponse "Водитель успешно создан"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
-// @Router /admin/driver [post]
+// @Param input body model.DriverInput true "Данные запроса"
+// @Success 201 {object} apperrors.SuccessResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /admin/driver/ [post]
 func (h *Driver) Create(c *gin.Context) {
-	var driver model.DriverInput
-	err := c.ShouldBind(&driver)
+	var input model.DriverInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
+		return
+	}
+	err := h.s.Create(c.Request.Context(), input)
 	if err != nil {
 		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
+		writeDomainError(c, err)
+		return
 	}
-
-	err = h.s.Create(c.Request.Context(), driver)
-	if err != nil {
-		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrInternal.Status, err)
-	}
-	c.JSON(http.StatusCreated, apperrors.SuccessResponse{
-		Message: "created",
-	})
+	c.JSON(http.StatusCreated, apperrors.SuccessResponse{Message: "created"})
 }
 
-// Update updates an existing driver (Admin only)
-// @Summary Обновить данные водителя (только админ)
-// @Description Обновляет информацию о водителе по ID (требуются права администратора)
-// @Security Bearer
+// @Summary Обновить запись водителя
+// @Description Обновляет запись водителя по ID из URL. Требуется роль admin. Передайте first_name, last_name, phone_number и status; id в JSON игнорируется.
 // @Tags admin/driver
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Param id path int true "ID водителя"
-// @Param input body model.DriverInput true "Обновленные данные водителя"
-// @Success 200 {object} apperrors.SuccessResponse "Данные водителя обновлены"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Param input body model.DriverInput true "Данные запроса"
+// @Success 200 {object} apperrors.SuccessResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/driver/{id} [put]
 func (h *Driver) Update(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-
-	var driver model.DriverInput
-	driver.ID = id
-	err = c.ShouldBind(&driver)
-	if err != nil {
-		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
+	var input model.DriverInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
 		return
 	}
-	err = h.s.Update(c.Request.Context(), driver)
+	input.ID = id
+	err := h.s.Update(c.Request.Context(), input)
 	if err != nil {
 		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrInternal.Status, err)
+		writeDomainError(c, err)
 		return
 	}
-
-	c.JSON(http.StatusOK, apperrors.SuccessResponse{
-		Message: "updated",
-	})
+	c.JSON(http.StatusOK, apperrors.SuccessResponse{Message: "updated"})
 }
 
-// Delete removes a driver by ID (Admin only)
-// @Summary Удалить водителя (только админ)
-// @Description Удаляет запись о водителе по ID (требуются права администратора)
-// @Security Bearer
+// @Summary Удалить запись водителя
+// @Description Удаляет запись водителя по ID. Требуется роль admin.
 // @Tags admin/driver
-// @Produce json
-// @Param id path int true "ID водителя"
-// @Success 204 "Водитель успешно удален"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Security Bearer
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 204 "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/driver/{id} [delete]
 func (h *Driver) Delete(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrBadRequest.Status, err)
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-	err = h.s.Delete(c.Request.Context(), id)
+	err := h.s.Delete(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error(err)
-		c.AbortWithError(apperrors.ErrInternal.Status, err)
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusNoContent, apperrors.SuccessResponse{
-		Message: "deleted",
-	})
+	c.Status(http.StatusNoContent)
 }

@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 type Stop interface {
@@ -29,169 +29,135 @@ func NewStop(logger *logger.Logger, s service.Stop) Stop {
 	}
 }
 
-// All retrieves a list of stops
-// @Summary Получить все остановки
-// @Description Возвращает все остановки в системе
+// @Summary Получить список остановок
+// @Description Возвращает список остановок с идентификаторами записей.
 // @Tags stops
 // @Produce json
-// @Success 200 {object} model.Stop "Модель остановок"
+// @Success 200 {array} model.Stop "Успешный ответ"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /stops [get]
+// @Router /stops/ [get]
 func (s *stop) All(c *gin.Context) {
 	output, err := s.s.All(c.Request.Context())
 	if err != nil {
 		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, output)
 }
 
-// ByID retrieves a single row of stop
-// @Summary Получить остановку
-// @Description Возвращает остановку по ID
-// @Param id path int true "ID остановки"
+// @Summary Получить запись остановки
+// @Description Возвращает данные остановки по ID.
 // @Tags stops
 // @Produce json
-// @Success 200 {object} model.TripStop "Модель пути"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 200 {object} model.Stop "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /stops/{id} [get]
 func (s *stop) ByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
 	output, err := s.s.ByID(c.Request.Context(), id)
 	if err != nil {
 		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, output)
 }
 
-// Create creates a new stop (Admin only)
-// @Summary Создать новую остановки (только админ)
-// @Description Создает новую запись остановки (требуются права администратора)
-// @Security Bearer
+// @Summary Создать запись остановки
+// @Description Создает запись остановки. Требуется роль admin.
 // @Tags admin/stops
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Param input body model.TripStop true "Данные остановки"
-// @Success 201 {object} apperrors.SuccessResponse "Остановка успешно создана"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
-// @Router /admin/stops [post]
+// @Param input body model.Stop true "Данные запроса"
+// @Success 201 {object} model.Stop "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /admin/stops/ [post]
 func (s *stop) Create(c *gin.Context) {
 	var input model.Stop
 	if err := c.ShouldBindJSON(&input); err != nil {
-		s.logger.Error(err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
 		return
 	}
 	err := s.s.Create(c.Request.Context(), &input)
 	if err != nil {
 		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "success",
-	})
+	c.JSON(http.StatusCreated, input)
 }
 
-// Update updates an existing stop (Admin only)
-// @Summary Обновить данные об остановке (только админ)
-// @Description Обновляет информацию об остановке по ID (требуются права администратора)
-// @Security Bearer
+// @Summary Обновить запись остановки
+// @Description Обновляет запись остановки по ID из URL. Требуется роль admin. Передавайте только изменяемые поля; пропущенные поля сохраняются.
 // @Tags admin/stops
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Param id path int true "ID остановки"
-// @Param input body model.StopUpdate true "Обновленные данные остановки"
-// @Success 200 {object} apperrors.SuccessResponse "Данные остановки обновлены"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Param input body model.StopUpdate true "Данные запроса"
+// @Success 200 {object} apperrors.SuccessResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/stops/{id} [put]
 func (s *stop) Update(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
 	var input model.StopUpdate
-	if err = c.ShouldBindJSON(&input); err != nil {
-		s.logger.Error(err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
 		return
 	}
 	input.ID = id
-	err = s.s.Update(c.Request.Context(), &input)
+	err := s.s.Update(c.Request.Context(), &input)
 	if err != nil {
 		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "success",
-	})
+	c.JSON(http.StatusOK, apperrors.SuccessResponse{Message: "updated"})
 }
 
-// Delete removes a stop by ID (Admin only)
-// @Summary Удалить остановки (только админ)
-// @Description Удаляет запись об остановке по ID (требуются права администратора)
-// @Security Bearer
+// @Summary Удалить запись остановки
+// @Description Удаляет запись остановки по ID. Требуется роль admin.
 // @Tags admin/stops
-// @Produce json
-// @Param id path int true "ID остановки"
-// @Success 204 "Остановка успешно удалена"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} apperrors.ErrorResponse "Остановка не найдена"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Security Bearer
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 204 "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/stops/{id} [delete]
 func (s *stop) Delete(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-	err = s.s.Delete(c.Request.Context(), id)
+	err := s.s.Delete(c.Request.Context(), id)
 	if err != nil {
 		s.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "success",
-	})
+	c.Status(http.StatusNoContent)
 }

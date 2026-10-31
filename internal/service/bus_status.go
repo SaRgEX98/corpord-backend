@@ -36,12 +36,15 @@ func (b *busStatus) ByID(ctx context.Context, id int) (model.BusStatus, error) {
 }
 
 func (b *busStatus) Create(ctx context.Context, status model.BusStatus) error {
+	if err := status.Validate(); err != nil {
+		return err
+	}
 	return b.repo.Create(ctx, status)
 }
 
 func (b *busStatus) Update(ctx context.Context, status model.BusStatus) (model.BusStatus, error) {
-	if status.Validate() != nil {
-		return model.BusStatus{}, ErrBusStatusExists
+	if err := status.Validate(); err != nil {
+		return model.BusStatus{}, err
 	}
 	return b.repo.Update(ctx, status)
 }

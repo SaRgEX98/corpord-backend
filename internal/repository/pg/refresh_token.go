@@ -5,6 +5,7 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/model"
 	"corpord-api/pkg/dbx"
+	"database/sql"
 	"errors"
 
 	sq "github.com/Masterminds/squirrel"
@@ -49,7 +50,7 @@ func (r *refreshTokenRepo) Save(ctx context.Context, token *model.RefreshSession
 			token.ID,
 			token.UserID,
 			token.TokenHash,
-			token.ExpiresAt,
+			token.ExpiresAt.UTC(),
 			token.IP,
 			token.UserAgent,
 		).
@@ -89,8 +90,11 @@ func (r *refreshTokenRepo) FindByHash(ctx context.Context, hash string) (*model.
 
 	err = r.qb.DB.GetContext(ctx, rt, query, args...)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRefreshTokenNotFound
+		}
 		r.logger.Error(err)
-		return nil, ErrRefreshTokenNotFound
+		return nil, err
 	}
 
 	return rt, nil
@@ -100,25 +104,42 @@ func (r *refreshTokenRepo) FindByHash(ctx context.Context, hash string) (*model.
 func (r *refreshTokenRepo) Revoke(ctx context.Context, id uuid.UUID) error {
 	query, args, err := r.qb.Sq.Update(TableRefreshToken).
 		Set("revoked", true).
-		Where(sq.Eq{"id": id}).
+		Set("updated_at", sq.Expr("now()")).
+		Where(sq.Eq{"id": id, "revoked": false}).
 		ToSql()
 	if err != nil {
 		r.logger.Error(err)
 		return err
 	}
 
-	_, err = r.qb.DB.ExecContext(ctx, query, args...)
+	result, err := r.qb.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		r.logger.Error(err)
+		return err
 	}
-
-	return err
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrRefreshTokenNotFound
+	}
+	return nil
 }
 
 // RevokeAllByUser отзывает все токены пользователя
 func (r *refreshTokenRepo) RevokeAllByUser(ctx context.Context, userID int) error {
+	tx, err := r.qb.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(1146376786, $1)", userID); err != nil {
+		return err
+	}
 	query, args, err := r.qb.Sq.Update(TableRefreshToken).
 		Set("revoked", true).
+		Set("updated_at", sq.Expr("now()")).
 		Where(sq.Eq{"user_id": userID}).
 		ToSql()
 	if err != nil {
@@ -126,12 +147,12 @@ func (r *refreshTokenRepo) RevokeAllByUser(ctx context.Context, userID int) erro
 		return err
 	}
 
-	_, err = r.qb.DB.ExecContext(ctx, query, args...)
+	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		r.logger.Error(err)
+		return err
 	}
-
-	return err
+	return tx.Commit()
 }
 
 func (r *refreshTokenRepo) RefreshToken(
@@ -144,30 +165,35 @@ func (r *refreshTokenRepo) RefreshToken(
 		return err
 	}
 	defer tx.Rollback()
-
-	// Найти старый токен
-	oldToken := &model.RefreshSession{}
-	query, args, _ := r.qb.Sq.Select("id", "revoked").
-		From(TableRefreshToken).
-		Where(sq.Eq{"token_hash": oldHash, "revoked": false}).
-		ToSql()
-
-	if err := tx.GetContext(ctx, oldToken, query, args...); err != nil {
-		return ErrRefreshTokenNotFound
+	// Serialize rotation and logout-all for this user. Without a common lock,
+	// logout-all can miss a replacement inserted by a concurrent refresh.
+	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(1146376786, $1)", newSession.UserID); err != nil {
+		return err
 	}
 
-	// Отозвать старый токен
-	_, err = tx.ExecContext(ctx,
-		"UPDATE refresh_tokens SET revoked=true WHERE id=$1", oldToken.ID)
+	// A conditional UPDATE takes the row lock. Concurrent refreshes wait and
+	// re-evaluate revoked after the winner commits, so exactly one can succeed.
+	var oldID uuid.UUID
+	err = tx.QueryRowxContext(ctx, `
+		UPDATE refresh_tokens SET revoked = true, updated_at = now()
+		WHERE token_hash = $1 AND user_id = $2
+		  AND revoked = false AND expires_at > (clock_timestamp() AT TIME ZONE 'UTC')
+		RETURNING id`, oldHash, newSession.UserID).Scan(&oldID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRefreshTokenNotFound
+		}
 		return err
 	}
 
 	// Сохранить новый токен (только хеш и метаданные)
-	query, args, _ = r.qb.Sq.Insert(TableRefreshToken).
+	query, args, err := r.qb.Sq.Insert(TableRefreshToken).
 		Columns("id", "user_id", "token_hash", "expires_at", "ip", "user_agent").
-		Values(newSession.ID, newSession.UserID, newSession.TokenHash, newSession.ExpiresAt, newSession.IP, newSession.UserAgent).
+		Values(newSession.ID, newSession.UserID, newSession.TokenHash, newSession.ExpiresAt.UTC(), newSession.IP, newSession.UserAgent).
 		ToSql()
+	if err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return err
 	}
@@ -179,7 +205,7 @@ func (r *refreshTokenRepo) RefreshToken(
 func (r *refreshTokenRepo) CleanupExpired(ctx context.Context) error {
 	query, args, err := r.qb.Sq.
 		Delete(TableRefreshToken).
-		Where("expires_at < now()").
+		Where("expires_at < (now() AT TIME ZONE 'UTC')").
 		ToSql()
 	if err != nil {
 		r.logger.Error("failed to build cleanup query: ", err)

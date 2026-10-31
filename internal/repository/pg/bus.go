@@ -52,7 +52,7 @@ func (b *busRepository) CreateBus(ctx context.Context, bus model.Bus) error {
 	_, err = b.qb.DB.ExecContext(ctx, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to create bus", "error", err, "license_plate", bus.LicensePlate)
-		return ErrAlreadyExists
+		return err
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (b *busRepository) GetBus(ctx context.Context, id int) (*model.ViewBus, err
 	err = b.qb.DB.GetContext(ctx, &bus, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to get bus", "error", err, "id", id)
-		return nil, ErrNotFound
+		return nil, err
 	}
 
 	return &bus, nil
@@ -109,7 +109,7 @@ func (b *busRepository) GetAllBuses(ctx context.Context) ([]model.ViewBus, error
 	err = b.qb.DB.SelectContext(ctx, &buses, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to get all buses", "error", err)
-		return nil, ErrNotFound
+		return nil, err
 	}
 
 	return buses, nil
@@ -117,11 +117,7 @@ func (b *busRepository) GetAllBuses(ctx context.Context) ([]model.ViewBus, error
 
 func (b *busRepository) UpdateBus(ctx context.Context, bus *model.BusUpdate) error {
 	query, args, err := b.qb.Sq.Update("bus").
-		Set("license_plate", bus.LicensePlate).
-		Set("brand", bus.Brand).
-		Set("capacity", bus.Capacity).
-		Set("category_id", bus.CategoryID).
-		Set("status_id", bus.StatusID).
+		SetMap(bus.ToMap()).
 		Set("updated_at", time.Now()).
 		Where(sq.Eq{"bus.id": bus.ID}).
 		ToSql()
@@ -131,10 +127,10 @@ func (b *busRepository) UpdateBus(ctx context.Context, bus *model.BusUpdate) err
 		return err
 	}
 
-	_, err = b.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, b.qb, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to update bus", "error", err, "id", bus.ID)
-		return ErrNotFound
+		return err
 	}
 
 	return nil
@@ -150,10 +146,10 @@ func (b *busRepository) DeleteBus(ctx context.Context, id int) error {
 		return err
 	}
 
-	_, err = b.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, b.qb, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to delete bus", "error", err, "id", id)
-		return ErrNotFound
+		return err
 	}
 
 	return nil

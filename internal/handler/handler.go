@@ -9,6 +9,7 @@ import (
 	"corpord-api/internal/sso"
 	"corpord-api/internal/token"
 	"corpord-api/model"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
@@ -35,7 +36,12 @@ type handler struct {
 }
 
 // New creates a new handler instance with all dependencies
-func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager, sso *sso.Registry) Handler {
+func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager, sso *sso.Registry, ssoOptions ...SSOOption) Handler {
+	router := gin.New()
+	router.Use(gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, recovered any) {
+		logger.Error("request panic recovered")
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	}))
 	return &handler{
 		user:     NewUser(logger, s.User),
 		auth:     NewAuthHandler(s.Auth, logger, t),
@@ -47,10 +53,10 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		trip:     NewTrip(logger, s.Trip),
 		tripStop: NewTripStop(logger, s.TripStop),
 		stop:     NewStop(logger, s.Stop),
-		sso:      NewSSOHandler(logger, s.Auth, sso, t),
+		sso:      NewSSOHandler(logger, s.Auth, sso, t, ssoOptions...),
 		logger:   logger,
 		s:        s,
-		r:        gin.Default(),
+		r:        router,
 		cfg:      cfg,
 		t:        t,
 	}
@@ -113,7 +119,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		}
 		// Protected routes - require valid JWT token
 		authorized := v1.Group("")
-		authorized.Use(middleware.AuthMiddleware(h.logger, h.t), middleware.RefreshMiddleware(h.auth.service))
+		authorized.Use(middleware.AuthMiddleware(h.logger, h.t, h.auth.service))
 		{
 			// Example of admin-only route
 			admin := authorized.Group("/admin")
@@ -123,6 +129,10 @@ func (h *handler) InitRoutes() *gin.Engine {
 				// admin.GET("/users", h.user.GetAllUsers)
 				users := admin.Group("/users")
 				{
+					users.GET("", h.user.All)
+					users.GET("/:id", h.user.Get)
+					users.POST("", h.user.Create)
+					users.DELETE("/:id", h.user.Delete)
 					users.PUT("/:id", h.user.Update) // Update user
 
 				}
@@ -179,11 +189,13 @@ func (h *handler) InitRoutes() *gin.Engine {
 			// User management
 			users := authorized.Group("/users")
 			{
-				users.GET("", h.user.All) // Get all users
 				users.GET("/me", h.user.Me)
-				users.GET("/:id", h.user.Get)       // Get user by ID
-				users.POST("", h.user.Create)       // Create user (kept for backward compatibility)
-				users.DELETE("/:id", h.user.Delete) // Delete user
+				// Legacy management routes have the same ACL as /admin/users.
+				users.Use(middleware.RoleMiddleware(h.logger, model.RoleAdmin))
+				users.GET("", h.user.All)
+				users.GET("/:id", h.user.Get)
+				users.POST("", h.user.Create)
+				users.DELETE("/:id", h.user.Delete)
 			}
 		}
 	}

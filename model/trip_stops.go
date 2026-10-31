@@ -1,7 +1,7 @@
 package model
 
 import (
-	"errors"
+	"math"
 	"time"
 )
 
@@ -25,7 +25,7 @@ type TripStopResponse struct {
 }
 
 type TripStopUpdate struct {
-	ID            int        `json:"-,omitempty" db:"id"`
+	ID            int        `json:"-" db:"id"`
 	TripID        *int       `json:"trip_id" db:"trip_id"`
 	StopID        *int       `json:"stop_id" db:"stop_id"`
 	ArrivalTime   *time.Time `json:"arrival_time" db:"arrival_time"`
@@ -37,7 +37,32 @@ type TripStopUpdate struct {
 func (tu *TripStopUpdate) Validate() error {
 	if tu.ArrivalTime == nil && tu.DepartureTime == nil && tu.StopOrder == nil && tu.PriceToNext == nil &&
 		tu.TripID == nil && tu.StopID == nil {
-		return errors.New("no fields to update")
+		return invalidInput("no fields to update")
+	}
+	if (tu.TripID != nil && *tu.TripID <= 0) || (tu.StopID != nil && *tu.StopID <= 0) || (tu.StopOrder != nil && *tu.StopOrder <= 0) {
+		return invalidInput("trip_id, stop_id and stop_order must be positive")
+	}
+	if tu.PriceToNext != nil && (*tu.PriceToNext < 0 || math.IsNaN(*tu.PriceToNext) || math.IsInf(*tu.PriceToNext, 0)) {
+		return invalidInput("price_to_next must be finite and non-negative")
+	}
+	if (tu.ArrivalTime != nil && tu.ArrivalTime.IsZero()) || (tu.DepartureTime != nil && tu.DepartureTime.IsZero()) {
+		return invalidInput("time must not be zero")
+	}
+	if tu.ArrivalTime != nil && tu.DepartureTime != nil && tu.DepartureTime.Before(*tu.ArrivalTime) {
+		return invalidInput("departure_time must not precede arrival_time")
+	}
+	return nil
+}
+
+func (t *TripStop) Validate() error {
+	if t.TripID <= 0 || t.StopID <= 0 || t.StopOrder <= 0 {
+		return invalidInput("trip_id, stop_id and stop_order must be positive")
+	}
+	if t.ArrivalTime.IsZero() || t.DepartureTime.IsZero() || t.DepartureTime.Before(t.ArrivalTime) {
+		return invalidInput("departure_time must not precede arrival_time")
+	}
+	if t.PriceToNext < 0 || math.IsNaN(t.PriceToNext) || math.IsInf(t.PriceToNext, 0) {
+		return invalidInput("price_to_next must be finite and non-negative")
 	}
 	return nil
 }

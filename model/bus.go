@@ -1,7 +1,7 @@
 package model
 
 import (
-	"errors"
+	"strings"
 	"time"
 )
 
@@ -20,6 +20,8 @@ type Bus struct {
 	Status   *BusStatus   `json:"status" db:"status"`
 }
 
+// ViewBus contains the bus id and human-readable category and status names.
+// @Description ViewBus contains the bus id and human-readable category and status names.
 type ViewBus struct {
 	ID           int    `json:"id" binding:"required" db:"id"`
 	LicensePlate string `json:"license_plate" binding:"required" db:"license_plate"`
@@ -37,8 +39,10 @@ type BusCreate struct {
 	StatusID     int    `json:"status_id"`
 }
 
+// BusUpdate changes only supplied fields; omitted fields are preserved and ID comes from the URL.
+// @Description BusUpdate changes only supplied fields; omitted fields are preserved and ID comes from the URL.
 type BusUpdate struct {
-	ID           int     `json:"id,omitempty" db:"id"`
+	ID           int     `json:"-" db:"id"`
 	LicensePlate *string `json:"license_plate"`
 	Brand        *string `json:"brand"`
 	Capacity     *int    `json:"capacity"`
@@ -52,8 +56,8 @@ type BusCategory struct {
 }
 
 func (bc *BusCategory) Validate() error {
-	if &bc.ID == nil && &bc.Name == nil {
-		return errors.New("at least one field must be updated")
+	if strings.TrimSpace(bc.Name) == "" {
+		return invalidInput("category name is required")
 	}
 	return nil
 }
@@ -64,15 +68,51 @@ type BusStatus struct {
 }
 
 func (bs *BusStatus) Validate() error {
-	if &bs.ID == nil && &bs.Name == nil {
-		return errors.New("at least one field must be updated")
+	if strings.TrimSpace(bs.Name) == "" {
+		return invalidInput("status name is required")
 	}
 	return nil
 }
 
 func (b *BusUpdate) Validate() error {
 	if b.LicensePlate == nil && b.Brand == nil && b.Capacity == nil && b.CategoryID == nil && b.StatusID == nil {
-		return errors.New("at least one field must be updated")
+		return invalidInput("at least one field must be updated")
+	}
+	if (b.LicensePlate != nil && strings.TrimSpace(*b.LicensePlate) == "") || (b.Brand != nil && strings.TrimSpace(*b.Brand) == "") {
+		return invalidInput("license_plate and brand must not be empty")
+	}
+	if (b.Capacity != nil && *b.Capacity <= 0) || (b.CategoryID != nil && *b.CategoryID <= 0) || (b.StatusID != nil && *b.StatusID <= 0) {
+		return invalidInput("capacity, category_id and status_id must be positive")
 	}
 	return nil
+}
+
+func (b *Bus) Validate() error {
+	if strings.TrimSpace(b.LicensePlate) == "" || strings.TrimSpace(b.Brand) == "" {
+		return invalidInput("license_plate and brand are required")
+	}
+	if b.Capacity <= 0 || b.CategoryID <= 0 || b.StatusID <= 0 {
+		return invalidInput("capacity, category_id and status_id must be positive")
+	}
+	return nil
+}
+
+func (b *BusUpdate) ToMap() map[string]interface{} {
+	fields := make(map[string]interface{})
+	if b.LicensePlate != nil {
+		fields["license_plate"] = *b.LicensePlate
+	}
+	if b.Brand != nil {
+		fields["brand"] = *b.Brand
+	}
+	if b.Capacity != nil {
+		fields["capacity"] = *b.Capacity
+	}
+	if b.CategoryID != nil {
+		fields["category_id"] = *b.CategoryID
+	}
+	if b.StatusID != nil {
+		fields["status_id"] = *b.StatusID
+	}
+	return fields
 }

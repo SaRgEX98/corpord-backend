@@ -7,161 +7,115 @@ import (
 	"corpord-api/model"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
-// SSOLogin — оркеструет вход через SSO-провайдера:
-// 1) получает провайдера из реестра
-// 2) делает обмен (exchange) и получает userinfo
-// 3) находит или создаёт пользователя и identity
-// 4) финализирует — выдаёт токены
-func (s *auth) SSOLogin(
-	ctx context.Context,
-	providerName, providerCodeOrID, email, name, userAgent, ip string,
-) (*model.TokenPair, error) {
-
-	// 1) получить провайдера из реестра
+func (s *auth) SSOLogin(ctx context.Context, providerName, code, codeVerifier, userAgent, ip string) (*model.TokenPair, error) {
+	ctx, cancel := context.WithTimeout(ctx, sso.LoginTimeout)
+	defer cancel()
 	p, err := s.sso.Get(providerName)
 	if err != nil {
 		return nil, ErrProviderNotSupported
 	}
-
-	// 2) exchange (code -> token). В зависимости от реализации провайдера
-	// providerCodeOrID обычно — auth code из callback.
-	tok, err := p.Exchange(ctx, providerCodeOrID)
+	tok, err := p.Exchange(ctx, code, codeVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("exchange failed: %w", err)
 	}
-
-	// 3) получить user info
 	info, err := p.GetUserInfo(ctx, tok)
 	if err != nil {
 		return nil, fmt.Errorf("get userinfo failed: %w", err)
 	}
-
-	// 4) найти или создать пользователя + identity
-	u, err := s.findOrCreateUserFromSSO(ctx, info, email, name)
+	if err := sso.ValidateUserInfo(info); err != nil {
+		return nil, err
+	}
+	if info.Provider != providerName {
+		return nil, errors.New("provider identity mismatch")
+	}
+	u, err := s.findOrCreateUserFromSSO(ctx, info)
 	if err != nil {
 		return nil, err
 	}
-
-	// 5) финализировать: пометить provider и providerID в user (для claims) и выдать токены
 	return s.finalizeSSOLogin(ctx, u, info.Provider, info.ProviderID, userAgent, ip)
 }
 
-// findOrCreateUserFromSSO ищет user по identity.provider+provider_id,
-// если не находит — пытается найти по email и привязать identity,
-// если и по email нет — создаёт нового пользователя и identity.
-//
-// Параметр email/name — это данные, которые мы могли получить у провайдера или из фронта.
-// Если info.Email пустой, используем переданный email (если есть).
-func (s *auth) findOrCreateUserFromSSO(
-	ctx context.Context,
-	info *sso.UserInfo,
-	fallbackEmail, fallbackName string,
-) (*model.UserDB, error) {
-
-	// 1) Попробовать найти identity по provider+provider_id
-	identity, err := s.userIdentity.GetProviderByID(ctx, info.Provider, info.ProviderID)
-	if err != nil && !errors.Is(err, pg.ErrIdentityNotFound) {
-		return nil, fmt.Errorf("failed to lookup identity: %w", err)
+// An email match is not proof of account ownership. Existing accounts require
+// their original login method; explicit identity linking is a separate flow.
+func (s *auth) findOrCreateUserFromSSO(ctx context.Context, info *sso.UserInfo) (*model.UserDB, error) {
+	u, err := s.findUserByIdentity(ctx, info)
+	if err != nil || u != nil {
+		return u, err
 	}
-
-	if identity != nil {
-		// identity нашлась — вернуть пользователя
-		u, err := s.authRepo.GetUserByID(ctx, identity.UserID)
-		if err != nil || u == nil {
-			return nil, ErrUserNotFound
-		}
-		return u, nil
-	}
-
-	// 2) identity не найдена — попробуем найти пользователя по email
-	emailToUse := info.Email
-	if emailToUse == "" {
-		emailToUse = fallbackEmail
-	}
-
-	if emailToUse != "" {
-		u, err := s.authRepo.GetUserByEmail(ctx, emailToUse)
-		if err != nil {
-			return nil, fmt.Errorf("failed to lookup user by email: %w", err)
-		}
-		if u != nil {
-			// пользователь найден по email → привязать identity
-			uid, err := uuid.NewV7()
-			if err != nil {
-				s.logger.Errorf("failed to generate uuid: %v", err)
-				return nil, fmt.Errorf("failed to generate uuid: %w", err)
-			}
-			newIdentity := &model.UserIdentity{
-				ID:         uid,
-				UserID:     u.ID,
-				Provider:   info.Provider,
-				ProviderID: info.ProviderID,
-			}
-			if err := s.userIdentity.AddIdentity(ctx, newIdentity); err != nil {
-				return nil, fmt.Errorf("failed to add identity: %w", err)
-			}
-			return u, nil
-		}
-	}
-
-	// 3) пользователь не найден по email → создаём нового
-	nameToUse := info.Name
-	if nameToUse == "" {
-		nameToUse = fallbackName
-	}
-
-	userCreate := &model.UserCreate{
-		Email:    emailToUse,
-		Name:     nameToUse,
-		Password: nil, // для SSO ставим пустой пароль; в БД password_hash может быть NULL
-	}
-
-	uid, err := s.authRepo.CreateUser(ctx, userCreate)
+	existing, err := s.authRepo.GetUserByEmail(ctx, info.Email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		return nil, fmt.Errorf("lookup SSO email: %w", err)
 	}
-
-	// создать identity для нового пользователя
+	if existing != nil {
+		// Another callback may have committed this identity between the first
+		// identity lookup and the email lookup. Authorize only by that identity.
+		found, lookupErr := s.findUserByIdentity(ctx, info)
+		if lookupErr != nil {
+			return nil, lookupErr
+		}
+		if found != nil {
+			return found, nil
+		}
+		return nil, ErrSSOAccountExists
+	}
+	name := strings.TrimSpace(info.Name)
+	if name == "" {
+		name = info.Email
+	}
 	id, err := uuid.NewV7()
 	if err != nil {
-		s.logger.Errorf("failed to generate uuid: %v", err)
-		return nil, fmt.Errorf("failed to generate uuid: %w", err)
+		return nil, fmt.Errorf("generate identity ID: %w", err)
 	}
-	newIdentity := &model.UserIdentity{
-		ID:         id,
-		UserID:     uid,
-		Provider:   info.Provider,
-		ProviderID: info.ProviderID,
+	u, err = s.userIdentity.CreateUserWithIdentity(ctx, &model.UserCreate{Email: info.Email, Name: name}, &model.UserIdentity{
+		ID: id, Provider: info.Provider, ProviderID: info.ProviderID,
+	})
+	if pg.IsPgError(err, pg.ErrorCodeUniqueViolation) {
+		// A concurrent callback may have created this exact identity. The failed
+		// transaction rolled its user back, so no orphaned account remains.
+		found, lookupErr := s.findUserByIdentity(ctx, info)
+		if lookupErr != nil {
+			return nil, lookupErr
+		}
+		if found != nil {
+			return found, nil
+		}
+		return nil, ErrSSOAccountExists
 	}
-	if err := s.userIdentity.AddIdentity(ctx, newIdentity); err != nil {
-		return nil, fmt.Errorf("failed to add identity for new user: %w", err)
-	}
-
-	// вернуть только-что созданного пользователя
-	created, err := s.authRepo.GetUserByID(ctx, uid)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch created user: %w", err)
+		return nil, fmt.Errorf("create SSO user and identity: %w", err)
 	}
-	return created, nil
+	return u, nil
 }
 
-// finalizeSSOLogin помечает пользователя как вошедшего через provider/providerID
-// и выдаёт комплект токенов (access + refresh) через s.issueTokens
-func (s *auth) finalizeSSOLogin(
-	ctx context.Context,
-	u *model.UserDB,
-	provider, providerID, userAgent, ip string,
-) (*model.TokenPair, error) {
+func (s *auth) findUserByIdentity(ctx context.Context, info *sso.UserInfo) (*model.UserDB, error) {
+	identity, err := s.userIdentity.GetProviderByID(ctx, info.Provider, info.ProviderID)
+	if err != nil && !errors.Is(err, pg.ErrIdentityNotFound) {
+		return nil, fmt.Errorf("lookup identity: %w", err)
+	}
+	if identity == nil {
+		return nil, nil
+	}
+	u, err := s.authRepo.GetUserByID(ctx, identity.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("lookup identity user: %w", err)
+	}
+	if u == nil {
+		return nil, ErrUserNotFound
+	}
+	return u, nil
+}
 
-	// Помещаем провайдерные данные в user (они попадут в claims)
+func (s *auth) finalizeSSOLogin(ctx context.Context, u *model.UserDB, provider, providerID, userAgent, ip string) (*model.TokenPair, error) {
+	if u == nil {
+		return nil, ErrUserNotFound
+	}
 	u.Provider = provider
 	u.ProviderID = providerID
-
-	// issueTokens выдаёт access и refresh (и создаёт refresh session)
 	tokens, err := s.issueTokens(ctx, u, userAgent, ip, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to issue tokens: %w", err)

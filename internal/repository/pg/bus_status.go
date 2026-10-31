@@ -5,7 +5,6 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/model"
 	"corpord-api/pkg/dbx"
-	"database/sql"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -30,35 +29,15 @@ func NewBusStatus(logger *logger.Logger, qb *dbx.QueryBuilder) BusStatus {
 }
 
 func (b *busStatus) All(ctx context.Context) ([]model.BusStatus, error) {
-	query, args, err := b.qb.Sq.Select("*").
-		From(TableBusStatuses).
-		ToSql()
+	query, args, err := b.qb.Sq.Select("id", "name").From(TableBusStatuses).OrderBy("id").ToSql()
 	if err != nil {
-		b.logger.Error("Failed to build select bus category query", "error", err)
 		return nil, err
 	}
-
-	rows, err := b.qb.DB.QueryContext(ctx, query, args...)
-	if err != nil {
-		b.logger.Error("Failed to select bus category", "error", err)
+	result := make([]model.BusStatus, 0)
+	if err := b.qb.DB.SelectContext(ctx, &result, query, args...); err != nil {
 		return nil, err
 	}
-
-	defer func(rows *sql.Rows) {
-		_ = rows.Close()
-	}(rows)
-
-	var busCategories []model.BusStatus
-	for rows.Next() {
-		var busStatus model.BusStatus
-		if err := rows.Scan(&busStatus.ID, &busStatus.Name); err != nil {
-			b.logger.Error("Failed to scan bus category", "error", err)
-			return nil, err
-		}
-		busCategories = append(busCategories, busStatus)
-	}
-
-	return busCategories, nil
+	return result, nil
 }
 
 func (b *busStatus) ByID(ctx context.Context, id int) (model.BusStatus, error) {
@@ -110,7 +89,7 @@ func (b *busStatus) Update(ctx context.Context, status model.BusStatus) (model.B
 		return model.BusStatus{}, err
 	}
 
-	_, err = b.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, b.qb, query, args...)
 	if err != nil {
 		b.logger.Error("Failed to update bus category", "error", err)
 		return model.BusStatus{}, err
@@ -127,6 +106,6 @@ func (b *busStatus) Delete(ctx context.Context, id int) error {
 		return err
 	}
 
-	_, err = b.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, b.qb, query, args...)
 	return err
 }

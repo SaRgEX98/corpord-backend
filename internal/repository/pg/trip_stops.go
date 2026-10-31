@@ -31,6 +31,7 @@ func NewTripStop(logger *logger.Logger, qb *dbx.QueryBuilder) TripStop {
 func (ts *tripStop) All(ctx context.Context) ([]*model.TripStop, error) {
 	var tripStops []*model.TripStop
 	query, args, err := ts.qb.Sq.Select(
+		"id",
 		"trip_id",
 		"stop_id",
 		"arrival_time",
@@ -54,6 +55,7 @@ func (ts *tripStop) All(ctx context.Context) ([]*model.TripStop, error) {
 func (ts *tripStop) ByID(ctx context.Context, id int) (*model.TripStop, error) {
 	var result model.TripStop
 	query, args, err := ts.qb.Sq.Select(
+		"id",
 		"trip_id",
 		"stop_id",
 		"arrival_time",
@@ -91,12 +93,13 @@ func (ts *tripStop) Create(ctx context.Context, tripStop *model.TripStop) error 
 			tripStop.DepartureTime,
 			tripStop.StopOrder,
 			tripStop.PriceToNext).
+		Suffix("RETURNING id").
 		ToSql()
 	if err != nil {
 		ts.logger.Error(err)
 		return err
 	}
-	_, err = ts.qb.DB.ExecContext(ctx, query, args...)
+	err = ts.qb.DB.QueryRowxContext(ctx, query, args...).Scan(&tripStop.ID)
 	if err != nil {
 		ts.logger.Error(err)
 		return err
@@ -113,7 +116,7 @@ func (ts *tripStop) Update(ctx context.Context, tripStop *model.TripStopUpdate) 
 		ts.logger.Error(err)
 		return err
 	}
-	_, err = ts.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, ts.qb, query, args...)
 	if err != nil {
 		ts.logger.Error(err)
 		return err
@@ -127,7 +130,7 @@ func (ts *tripStop) Delete(ctx context.Context, id int) error {
 		ts.logger.Error(err)
 		return err
 	}
-	_, err = ts.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, ts.qb, query, args...)
 	if err != nil {
 		ts.logger.Error(err)
 		return err

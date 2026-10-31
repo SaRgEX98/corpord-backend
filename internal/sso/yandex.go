@@ -2,7 +2,7 @@ package sso
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,8 +11,9 @@ import (
 )
 
 type YandexProvider struct {
-	cfg    *oauth2.Config
-	client *http.Client
+	cfg         *oauth2.Config
+	client      *http.Client
+	userInfoURL string
 }
 
 func NewYandexProvider(clientID, clientSecret, redirectURL string) Provider {
@@ -27,7 +28,8 @@ func NewYandexProvider(clientID, clientSecret, redirectURL string) Provider {
 				TokenURL: "https://oauth.yandex.ru/token",
 			},
 		},
-		client: &http.Client{},
+		client:      providerHTTPClient(),
+		userInfoURL: "https://login.yandex.ru/info?format=json",
 	}
 }
 
@@ -36,18 +38,29 @@ func (p *YandexProvider) Name() string {
 }
 
 // Ссылка на авторизацию
-func (p *YandexProvider) AuthURL(state string) string {
-	return p.cfg.AuthCodeURL(state)
+func (p *YandexProvider) AuthURL(state, codeVerifier string) string {
+	return p.cfg.AuthCodeURL(state, oauth2.S256ChallengeOption(codeVerifier))
 }
 
 // Обмен code -> token
-func (p *YandexProvider) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
-	return p.cfg.Exchange(ctx, code)
+func (p *YandexProvider) Exchange(ctx context.Context, code, codeVerifier string) (*oauth2.Token, error) {
+	if code == "" || codeVerifier == "" {
+		return nil, errors.New("missing authorization code or PKCE verifier")
+	}
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, p.client)
+	tok, err := p.cfg.Exchange(ctx, code, oauth2.VerifierOption(codeVerifier))
+	if err != nil {
+		return nil, errors.New("yandex code exchange failed")
+	}
+	return tok, nil
 }
 
 // Запрос user info
 func (p *YandexProvider) GetUserInfo(ctx context.Context, tok *oauth2.Token) (*UserInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://login.yandex.ru/info?format=json", nil)
+	if tok == nil || tok.AccessToken == "" {
+		return nil, errors.New("missing provider access token")
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", p.userInfoURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +81,7 @@ func (p *YandexProvider) GetUserInfo(ctx context.Context, tok *oauth2.Token) (*U
 		LastName  string `json:"last_name"`
 		Email     string `json:"default_email"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err := decodeUserInfo(resp, &data); err != nil {
 		return nil, fmt.Errorf("decode failed: %w", err)
 	}
 
@@ -77,10 +90,14 @@ func (p *YandexProvider) GetUserInfo(ctx context.Context, tok *oauth2.Token) (*U
 		name = strings.TrimSpace(data.FirstName + " " + data.LastName)
 	}
 
-	return &UserInfo{
+	info := &UserInfo{
 		Provider:   "yandex",
 		ProviderID: data.ID,
 		Email:      data.Email,
 		Name:       name,
-	}, nil
+	}
+	if err := ValidateUserInfo(info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }

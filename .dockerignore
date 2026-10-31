@@ -1,7 +1,12 @@
 .git
+.github
 .gitignore
 Dockerfile
+docker-compose.yaml
 docker-compose.yml
 tmp/
 *.log
-.env
+.env*
+**/.env*
+!.env.example
+!**/.env.example

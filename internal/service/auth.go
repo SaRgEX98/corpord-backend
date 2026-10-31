@@ -5,6 +5,7 @@ import (
 	"corpord-api/internal/sso"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,7 +21,8 @@ import (
 type Auth interface {
 	Register(ctx context.Context, user *model.UserCreate, userAgent, ip string) (*model.TokenPair, error)
 	Login(ctx context.Context, credentials model.UserLogin, userAgent, ip string) (*model.TokenPair, error)
-	SSOLogin(ctx context.Context, provider, providerID, email, name, userAgent, ip string) (*model.TokenPair, error)
+	SSOLogin(ctx context.Context, provider, code, codeVerifier, userAgent, ip string) (*model.TokenPair, error)
+	Authenticate(ctx context.Context, tokenString string) (*model.Claims, error)
 	ValidateToken(tokenString string) (int, error)
 	Refresh(ctx context.Context, rawRefreshToken, userAgent, ip string) (*model.TokenPair, error)
 	Logout(ctx context.Context, rawRefreshToken string) error
@@ -67,12 +69,27 @@ func (s *auth) generateAccessToken(u *model.UserDB, amr string) (string, error) 
 	})
 }
 
-// генерирует Refresh Token и сохраняет сессию
-func (s *auth) generateRefreshTokenAndSession(
-	ctx context.Context,
+// generateTokens only generates credentials and session metadata. Persistence is
+// handled by the caller so refresh can consume and replace a session atomically.
+func (s *auth) generateTokens(
+	u *model.UserDB,
+	userAgent, ip, amr string,
+) (*model.TokenPair, *model.RefreshSession, error) {
+	access, err := s.generateAccessToken(u, amr)
+	if err != nil {
+		return nil, nil, err
+	}
+	refresh, session, err := s.generateRefreshSession(u.ID, userAgent, ip)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &model.TokenPair{AccessToken: access, RefreshToken: refresh}, session, nil
+}
+
+func (s *auth) generateRefreshSession(
 	userID int,
 	userAgent, ip string,
-) (string, error) {
+) (string, *model.RefreshSession, error) {
 	if userAgent == "" {
 		userAgent = "unknown"
 	}
@@ -82,13 +99,13 @@ func (s *auth) generateRefreshTokenAndSession(
 
 	raw, hashBytes, err := s.token.GenerateRefreshToken()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
 		s.logger.Errorf("generateRefreshTokenAndSession: failed to generate refresh token id: %v", err)
-		return "", err
+		return "", nil, err
 	}
 	session := &model.RefreshSession{
 		ID:        id,
@@ -99,11 +116,7 @@ func (s *auth) generateRefreshTokenAndSession(
 		ExpiresAt: time.Now().Add(s.token.RefreshTTL()),
 	}
 
-	if err = s.refreshRepo.Save(ctx, session); err != nil {
-		return "", err
-	}
-
-	return raw, nil
+	return raw, session, nil
 }
 
 // выдает полный комплект токенов
@@ -113,29 +126,28 @@ func (s *auth) issueTokens(
 	userAgent, ip, amr string,
 ) (*model.TokenPair, error) {
 
-	access, err := s.generateAccessToken(u, amr)
+	tokens, session, err := s.generateTokens(u, userAgent, ip, amr)
 	if err != nil {
 		return nil, err
 	}
 
-	refresh, err := s.generateRefreshTokenAndSession(ctx, u.ID, userAgent, ip)
-	if err != nil {
+	if err = s.refreshRepo.Save(ctx, session); err != nil {
 		return nil, err
 	}
 
-	return &model.TokenPair{
-		AccessToken:  access,
-		RefreshToken: refresh,
-	}, nil
+	return tokens, nil
 }
 
 // Register создает нового пользователя
 func (s *auth) Register(ctx context.Context, input *model.UserCreate, userAgent, ip string) (*model.TokenPair, error) {
+	if input == nil || input.Password == nil || len(*input.Password) == 0 || len(*input.Password) > 72 {
+		return nil, ErrInvalidPass
+	}
 	s.logger.Info("Register user", "email", input.Email)
 
 	existing, err := s.authRepo.GetUserByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, ErrInvalidPass
+		return nil, fmt.Errorf("lookup registration email: %w", err)
 	}
 	if existing != nil {
 		return nil, ErrEmailExists
@@ -145,16 +157,21 @@ func (s *auth) Register(ctx context.Context, input *model.UserCreate, userAgent,
 	if err != nil {
 		return nil, ErrInvalidPass
 	}
-	*input.Password = string(hash)
+	hashedPassword := string(hash)
+	userToCreate := *input
+	userToCreate.Password = &hashedPassword
 
-	uid, err := s.authRepo.CreateUser(ctx, input)
+	uid, err := s.authRepo.CreateUser(ctx, &userToCreate)
 	if err != nil {
-		return nil, ErrInvalidPass
+		if pg.IsPgError(err, pg.ErrorCodeUniqueViolation) {
+			return nil, ErrEmailExists
+		}
+		return nil, fmt.Errorf("create local user: %w", err)
 	}
 
 	u, err := s.authRepo.GetUserByID(ctx, uid)
-	if err != nil {
-		return nil, ErrUserNotFound
+	if err != nil || u == nil {
+		return nil, fmt.Errorf("load registered user: %w", ErrUserNotFound)
 	}
 
 	u.Provider = "local"
@@ -172,12 +189,15 @@ func (s *auth) Login(ctx context.Context, credentials model.UserLogin, userAgent
 	}
 
 	u, err := s.authRepo.GetUserByEmail(ctx, credentials.Email)
-	if err != nil || u == nil {
+	if err != nil {
+		return nil, fmt.Errorf("lookup login user: %w", err)
+	}
+	if u == nil || u.DeletedAt != nil || u.PasswordHash == nil {
 		return nil, ErrInvalidCredentials
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(*u.PasswordHash), []byte(credentials.Password)); err != nil {
-		return nil, ErrInvalidPass
+		return nil, ErrInvalidCredentials
 	}
 
 	u.Provider = "local"
@@ -186,18 +206,35 @@ func (s *auth) Login(ctx context.Context, credentials model.UserLogin, userAgent
 	return s.issueTokens(ctx, u, userAgent, ip, "pwd")
 }
 
-// ValidateToken проверяет JWT
-func (s *auth) ValidateToken(tokenString string) (int, error) {
+// Authenticate validates the JWT and resolves the current user and role. Deleted
+// users and permissions removed since token issuance take effect immediately.
+func (s *auth) Authenticate(ctx context.Context, tokenString string) (*model.Claims, error) {
 	claims, err := s.token.Validate(tokenString)
 	if err != nil {
-		return 0, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	u, err := s.authRepo.GetUserByID(context.Background(), claims.UserID)
-	if err != nil || u == nil {
-		return 0, ErrUserNotFound
+	if claims.UserID <= 0 {
+		return nil, ErrInvalidCredentials
 	}
+	u, err := s.authRepo.GetUserByID(ctx, claims.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("authenticate user: %w", err)
+	}
+	if u == nil || u.DeletedAt != nil {
+		return nil, ErrUserNotFound
+	}
+	claims.Role = u.Role
+	claims.Email = u.Email
+	return claims, nil
+}
 
+// ValidateToken is retained for callers that only require the user ID.
+func (s *auth) ValidateToken(tokenString string) (int, error) {
+	claims, err := s.Authenticate(context.Background(), tokenString)
+	if err != nil {
+		return 0, err
+	}
 	return claims.UserID, nil
 }
 
@@ -206,6 +243,9 @@ func (s *auth) Refresh(
 	ctx context.Context,
 	rawRefreshToken, userAgent, ip string,
 ) (*model.TokenPair, error) {
+	if rawRefreshToken == "" {
+		return nil, ErrInvalidRefreshToken
+	}
 
 	hash := sha256.Sum256([]byte(rawRefreshToken))
 	hashHex := hex.EncodeToString(hash[:])
@@ -213,48 +253,44 @@ func (s *auth) Refresh(
 	// 1. Найти сессию
 	session, err := s.refreshRepo.FindByHash(ctx, hashHex)
 	if err != nil {
+		if errors.Is(err, pg.ErrRefreshTokenNotFound) {
+			return nil, ErrInvalidRefreshToken
+		}
+		return nil, fmt.Errorf("lookup refresh session: %w", err)
+	}
+	if session == nil || session.Revoked {
 		return nil, ErrInvalidRefreshToken
 	}
 
 	// 2. Проверить срок действия
-	if time.Now().After(session.ExpiresAt) {
+	if !time.Now().Before(session.ExpiresAt) {
 		_ = s.refreshRepo.Revoke(ctx, session.ID)
 		return nil, ErrRefreshTokenExpired
 	}
 
 	// 3. Получить пользователя
 	u, err := s.authRepo.GetUserByID(ctx, session.UserID)
-	if err != nil || u == nil {
+	if err != nil {
+		return nil, fmt.Errorf("load refresh user: %w", err)
+	}
+	if u == nil || u.DeletedAt != nil {
 		_ = s.refreshRepo.Revoke(ctx, session.ID)
 		return nil, ErrInvalidRefreshToken
 	}
 
 	// 4. Сгенерировать новую пару токенов
-	newTokens, err := s.issueTokens(ctx, u, userAgent, ip, "refresh")
+	newTokens, newSession, err := s.generateTokens(u, userAgent, ip, "refresh")
 	if err != nil {
-		return nil, ErrInvalidRefreshToken
+		return nil, fmt.Errorf("generate refreshed tokens: %w", err)
 	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		s.logger.Errorf("generateRefreshTokenAndSession: failed to generate refresh token id: %v", err)
-		return nil, ErrInvalidRefreshToken
-	}
-	newHash := sha256.Sum256([]byte(newTokens.RefreshToken))
-	newHashHex := hex.EncodeToString(newHash[:])
-	// 5. Обновить refresh токен в репозитории транзакционно
-	newSession := &model.RefreshSession{
-		ID:        id,
-		UserID:    u.ID,
-		TokenHash: newHashHex,
-		ExpiresAt: time.Now().Add(s.token.RefreshTTL()),
-		IP:        ip,
-		UserAgent: userAgent,
-	}
+	// Only the transaction persists the replacement. Its conditional UPDATE is
+	// the single point that decides whether the old token may be used.
 	if err := s.refreshRepo.RefreshToken(ctx, hashHex, newSession); err != nil {
-		return nil, err
+		if errors.Is(err, pg.ErrRefreshTokenNotFound) {
+			return nil, ErrInvalidRefreshToken
+		}
+		return nil, fmt.Errorf("rotate refresh session: %w", err)
 	}
-
-	_ = s.refreshRepo.CleanupExpired(ctx)
 
 	// 6. Вернуть raw токен клиенту
 	return newTokens, nil
@@ -267,13 +303,28 @@ func (s *auth) Logout(ctx context.Context, rawRefreshToken string) error {
 
 	session, err := s.refreshRepo.FindByHash(ctx, hashHex)
 	if err != nil {
+		if errors.Is(err, pg.ErrRefreshTokenNotFound) {
+			return ErrInvalidRefreshToken
+		}
+		return fmt.Errorf("lookup logout session: %w", err)
+	}
+	if session == nil {
 		return ErrInvalidRefreshToken
 	}
 
-	return s.refreshRepo.Revoke(ctx, session.ID)
+	if err := s.refreshRepo.Revoke(ctx, session.ID); err != nil {
+		if errors.Is(err, pg.ErrRefreshTokenNotFound) {
+			return ErrInvalidRefreshToken
+		}
+		return fmt.Errorf("revoke logout session: %w", err)
+	}
+	return nil
 }
 
 // LogoutAll отзывает все токены пользователя
 func (s *auth) LogoutAll(ctx context.Context, userID int) error {
+	if userID <= 0 {
+		return ErrInvalidCredentials
+	}
 	return s.refreshRepo.RevokeAllByUser(ctx, userID)
 }

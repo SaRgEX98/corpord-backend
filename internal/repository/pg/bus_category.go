@@ -5,7 +5,6 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/model"
 	"corpord-api/pkg/dbx"
-	"database/sql"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -30,36 +29,15 @@ func NewBusCategory(logger *logger.Logger, qb *dbx.QueryBuilder) BusCategory {
 }
 
 func (b *busCategory) GetAll(ctx context.Context) ([]model.BusCategory, error) {
-	query, args, err := b.qb.Sq.Select("*").
-		From(TableBusCategories).
-		ToSql()
-
+	query, args, err := b.qb.Sq.Select("id", "name").From(TableBusCategories).OrderBy("id").ToSql()
 	if err != nil {
-		b.logger.Error("Failed to build select bus category query", "error", err)
 		return nil, err
 	}
-
-	rows, err := b.qb.DB.QueryContext(ctx, query, args...)
-	if err != nil {
-		b.logger.Error("Failed to select bus category", "error", err)
+	result := make([]model.BusCategory, 0)
+	if err := b.qb.DB.SelectContext(ctx, &result, query, args...); err != nil {
 		return nil, err
 	}
-
-	defer func(rows *sql.Rows) {
-		_ = rows.Close()
-	}(rows)
-
-	var busCategories []model.BusCategory
-	for rows.Next() {
-		var busCategory model.BusCategory
-		if err := rows.Scan(&busCategory.ID, &busCategory.Name); err != nil {
-			b.logger.Error("Failed to scan bus category", "error", err)
-			return nil, err
-		}
-		busCategories = append(busCategories, busCategory)
-	}
-
-	return busCategories, nil
+	return result, nil
 }
 
 func (b *busCategory) GetById(ctx context.Context, id int) (*model.BusCategory, error) {
@@ -110,7 +88,7 @@ func (b *busCategory) Update(ctx context.Context, category model.BusCategory) (m
 		return model.BusCategory{}, err
 	}
 
-	_, err = b.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, b.qb, query, args...)
 	if err != nil {
 		b.logger.Errorf("failed to execute query: %s\nerror: %v", query, err)
 		return model.BusCategory{}, err
@@ -127,6 +105,6 @@ func (b *busCategory) Delete(ctx context.Context, id int) error {
 		return err
 	}
 
-	_, err = b.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, b.qb, query, args...)
 	return err
 }

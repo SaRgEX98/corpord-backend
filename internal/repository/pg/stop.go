@@ -32,6 +32,7 @@ func NewStop(logger *logger.Logger, qb *dbx.QueryBuilder) Stop {
 func (s *stop) All(ctx context.Context) ([]*model.Stop, error) {
 	var stops []*model.Stop
 	query, args, err := s.qb.Sq.Select(
+		"id",
 		"name",
 		"address",
 		"latitude",
@@ -55,6 +56,7 @@ func (s *stop) All(ctx context.Context) ([]*model.Stop, error) {
 func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
 	var result model.Stop
 	query, args, err := s.qb.Sq.Select(
+		"id",
 		"name",
 		"address",
 		"latitude",
@@ -87,12 +89,13 @@ func (s *stop) Create(ctx context.Context, stop *model.Stop) error {
 			stop.Address,
 			stop.Latitude,
 			stop.Longitude).
+		Suffix("RETURNING id").
 		ToSql()
 	if err != nil {
 		s.logger.Error("failed to build query from database", zap.Error(err))
 		return err
 	}
-	_, err = s.qb.DB.ExecContext(ctx, query, args...)
+	err = s.qb.DB.QueryRowxContext(ctx, query, args...).Scan(&stop.ID)
 	if err != nil {
 		s.logger.Error("failed to execute query from database", zap.Error(err))
 		return err
@@ -109,7 +112,7 @@ func (s *stop) Update(ctx context.Context, stop *model.StopUpdate) error {
 		s.logger.Error("failed to build query from database", zap.Error(err))
 		return err
 	}
-	_, err = s.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, s.qb, query, args...)
 	if err != nil {
 		s.logger.Error("failed to execute query from database", zap.Error(err))
 		return err
@@ -123,7 +126,7 @@ func (s *stop) Delete(ctx context.Context, id int) error {
 		s.logger.Error("failed to build query from database", zap.Error(err))
 		return err
 	}
-	_, err = s.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, s.qb, query, args...)
 	if err != nil {
 		s.logger.Error("failed to execute query from database", zap.Error(err))
 		return err

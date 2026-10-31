@@ -5,11 +5,8 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
-	"errors"
-	"net/http"
-	"strconv"
-
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 // BusCategoryHandler обрабатывает HTTP-запросы для работы с категориями автобусов
@@ -25,197 +22,135 @@ func NewBusCategory(logger *logger.Logger, bc service.BusCategory) *BusCategoryH
 	}
 }
 
-// GetAll возвращает список всех категорий автобусов
-// @Summary Получить все категории автобусов
-// @Description Возвращает список всех доступных категорий автобусов. Доступно всем пользователям
+// @Summary Получить список категорий автобусов
+// @Description Возвращает список категорий автобусов с идентификаторами записей.
 // @Tags bus/categories
 // @Produce json
-// @Success 200 {array} model.BusCategory "Список категорий автобусов"
+// @Success 200 {array} model.BusCategory "Успешный ответ"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /bus/categories [get]
+// @Router /bus/categories/ [get]
 func (h *BusCategoryHandler) GetAll(c *gin.Context) {
 	output, err := h.bc.GetAll(c.Request.Context())
 	if err != nil {
-		h.logger.Errorf("error while getting categories: %v", err)
-		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
-			Error: "Не удалось получить список категорий",
-		})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, output)
 }
 
-// GetById возвращает категорию автобуса по ID
-// @Summary Получить категорию по ID
-// @Description Возвращает информацию о категории автобуса по её идентификатору. Доступно всем пользователям
+// @Summary Получить запись категории автобусов
+// @Description Возвращает данные категории автобусов по ID.
 // @Tags bus/categories
 // @Produce json
-// @Param id path int true "ID категории"
-// @Success 200 {object} model.BusCategory "Данные категории"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 404 {object} apperrors.ErrorResponse "Категория не найдена"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 200 {object} model.BusCategory "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /bus/categories/{id} [get]
 func (h *BusCategoryHandler) GetById(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
-			Error: "Некорректный ID категории",
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-
 	output, err := h.bc.GetById(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Errorf("failed to get category: %v", err)
-		if errors.Is(err, service.ErrBusCategoryNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
-				Error: "Категория не найдена",
-			})
-			return
-		}
-		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
-			Error: "Не удалось получить данные категории",
-		})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, output)
 }
 
-// Create создает новую категорию автобуса
-// @Summary Создать новую категорию автобуса
-// @Description Создает новую категорию автобуса (только для администраторов)
+// @Summary Создать запись категории автобусов
+// @Description Создает запись категории автобусов. Требуется роль admin. Поле name обязательно; id назначается сервером.
 // @Tags admin/bus/categories
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Security Bearer
-// @Param input body model.BusCategory true "Данные категории"
-// @Success 201 {object} apperrors.SuccessResponse "Категория успешно создана"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен. Требуются права администратора"
-// @Failure 409 {object} apperrors.ErrorResponse "Категория с таким названием уже существует"
+// @Param input body model.BusCategory true "Данные запроса"
+// @Success 201 {object} apperrors.SuccessResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /admin/bus/categories [post]
+// @Router /admin/bus/categories/ [post]
 func (h *BusCategoryHandler) Create(c *gin.Context) {
 	var input model.BusCategory
 	if err := c.ShouldBindJSON(&input); err != nil {
-		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
-			Error: "Некорректные данные категории",
-		})
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
 		return
 	}
-
-	if err := h.bc.Create(c.Request.Context(), input); err != nil {
-		h.logger.Errorf("failed to create category: %v", err)
-		if errors.Is(err, service.ErrBusCategoryExists) {
-			c.JSON(http.StatusConflict, apperrors.ErrorResponse{
-				Error: "Категория с таким названием уже существует",
-			})
-			return
-		}
-		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
-			Error: "Не удалось создать категорию",
-		})
+	err := h.bc.Create(c.Request.Context(), input)
+	if err != nil {
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
-	c.JSON(http.StatusCreated, apperrors.SuccessResponse{
-		Message: "Категория успешно создана",
-	})
+	c.JSON(http.StatusCreated, apperrors.SuccessResponse{Message: "created"})
 }
 
-// Delete удаляет категорию автобуса
-// @Summary Удалить категорию автобуса
-// @Description Удаляет категорию автобуса по ID (только для администраторов)
+// @Summary Удалить запись категории автобусов
+// @Description Удаляет запись категории автобусов по ID. Требуется роль admin.
 // @Tags admin/bus/categories
-// @Produce json
 // @Security Bearer
-// @Param id path int true "ID категории"
-// @Success 204 "Категория успешно удалена"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен. Требуются права администратора"
-// @Failure 404 {object} apperrors.ErrorResponse "Категория не найдена"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 204 "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/bus/categories/{id} [delete]
 func (h *BusCategoryHandler) Delete(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, ok := domainID(c)
+	if !ok {
+		return
+	}
+	err := h.bc.Delete(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
-			Error: "Некорректный ID категории",
-		})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
-	if err := h.bc.Delete(c.Request.Context(), id); err != nil {
-		h.logger.Errorf("failed to delete category %d: %v", id, err)
-		if errors.Is(err, service.ErrBusCategoryNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{
-				Error: "Категория не найдена",
-			})
-			return
-		}
-		c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{
-			Error: "Не удалось удалить категорию"})
-		return
-	}
-
 	c.Status(http.StatusNoContent)
 }
 
-// Update обновляет данные категории автобуса
-// @Summary Обновить категорию автобуса
-// @Description Обновляет информацию о категории автобуса по ID (только для администраторов)
+// @Summary Обновить запись категории автобусов
+// @Description Обновляет запись категории автобусов по ID из URL. Требуется роль admin. Поле name обязательно; id в JSON игнорируется.
 // @Tags admin/bus/categories
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Security Bearer
-// @Param id path int true "ID категории"
-// @Param input body model.BusCategory true "Обновленные данные категории"
-// @Success 200 {object} model.BusCategory "Обновленные данные категории"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен. Требуются права администратора"
-// @Failure 404 {object} apperrors.ErrorResponse "Категория не найдена"
-// @Failure 409 {object} apperrors.ErrorResponse "Категория с таким названием уже существует"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Param input body model.BusCategory true "Данные запроса"
+// @Success 200 {object} model.BusCategory "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/bus/categories/{id} [put]
 func (h *BusCategoryHandler) Update(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, ok := domainID(c)
+	if !ok {
+		return
+	}
+	var input model.BusCategory
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
+		return
+	}
+	input.ID = id
+	output, err := h.bc.Update(c.Request.Context(), input)
 	if err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
-			Error: "Некорректный ID категории",
-		})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
-	var category model.BusCategory
-	if err := c.ShouldBindJSON(&category); err != nil {
-		h.logger.Warnf("invalid request body: %v", err)
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{
-			Error: "Некорректные данные для обновления",
-		})
-		return
-	}
-
-	category.ID = id
-
-	updatedCategory, err := h.bc.Update(c.Request.Context(), category)
-	if err != nil {
-		h.logger.Errorf("failed to update category %d: %v", id, err)
-		switch {
-		case errors.Is(err, service.ErrBusCategoryNotFound):
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: "Категория не найдена"})
-		case errors.Is(err, service.ErrBusCategoryExists):
-			c.JSON(http.StatusConflict, apperrors.ErrorResponse{Error: "Категория с таким названием уже существует"})
-		default:
-			c.JSON(apperrors.ErrInternal.Status, apperrors.ErrorResponse{Error: "Не удалось обновить категорию"})
-		}
-		return
-	}
-
-	c.JSON(http.StatusOK, updatedCategory)
+	c.JSON(http.StatusOK, output)
 }

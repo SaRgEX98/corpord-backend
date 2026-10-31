@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"corpord-api/internal/app"
+	"errors"
 	"log"
+	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 )
@@ -20,7 +23,6 @@ import (
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8080
 // @BasePath  /api/v1
 
 // @securityDefinitions.apikey Bearer
@@ -28,14 +30,28 @@ import (
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
 func main() {
-	sig, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	sig, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+	if err := run(sig); err != nil {
+		log.Printf("server stopped: %v", err)
+		os.Exit(1)
+	}
+}
 
-	a := *app.New()
-	go func() {
-		if err := a.Start(); err != nil {
-			log.Fatal("couldn't start app")
-		}
-	}()
-	<-sig.Done()
+func run(ctx context.Context) error {
+	a := app.New()
+	stopped := make(chan error, 1)
+	go func() { stopped <- a.Start() }()
+	var err error
+	select {
+	case <-ctx.Done():
+		a.Stop()
+		err = <-stopped
+	case err = <-stopped:
+		a.Stop()
+	}
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
 }

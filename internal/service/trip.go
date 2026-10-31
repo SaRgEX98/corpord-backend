@@ -41,12 +41,34 @@ func (t *trip) ById(ctx context.Context, id int) (*model.TripResponse, error) {
 }
 
 func (t *trip) Create(ctx context.Context, trip *model.Trip) error {
+	if trip.Status == "" {
+		trip.Status = "scheduled"
+	}
+	if err := trip.Validate(); err != nil {
+		return err
+	}
 	return t.repo.Create(ctx, trip)
 }
 
 func (t *trip) Update(ctx context.Context, trip *model.TripUpdate) error {
 	if err := trip.Validate(); err != nil {
 		return err
+	}
+	if trip.StartTime != nil || trip.EndTime != nil {
+		current, err := t.repo.ByID(ctx, trip.ID)
+		if err != nil {
+			return err
+		}
+		start, end := current.StartTime, current.EndTime
+		if trip.StartTime != nil {
+			start = *trip.StartTime
+		}
+		if trip.EndTime != nil {
+			end = trip.EndTime
+		}
+		if end != nil && !end.After(start) {
+			return &model.ValidationError{Message: "end_time must be after start_time"}
+		}
 	}
 	return t.repo.Update(ctx, trip)
 }

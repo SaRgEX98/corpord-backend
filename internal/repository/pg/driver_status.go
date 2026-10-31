@@ -9,7 +9,7 @@ import (
 )
 
 type DriverStatus interface {
-	All(ctx context.Context) []model.DriverStatus
+	All(ctx context.Context) ([]model.DriverStatus, error)
 	ById(ctx context.Context, id int) (model.DriverStatus, error)
 	Create(ctx context.Context, status *model.DriverStatus) error
 	Update(ctx context.Context, status *model.DriverStatus) error
@@ -28,19 +28,19 @@ func NewDriverStatus(logger *logger.Logger, qb *dbx.QueryBuilder) DriverStatus {
 	}
 }
 
-func (d *driverStatus) All(ctx context.Context) []model.DriverStatus {
-	var results []model.DriverStatus
+func (d *driverStatus) All(ctx context.Context) ([]model.DriverStatus, error) {
+	results := make([]model.DriverStatus, 0)
 	query, args, err := d.qb.Sq.Select("id, name").From(TableDriverStatus).ToSql()
 	if err != nil {
 		d.logger.Error(err)
-		return []model.DriverStatus{}
+		return nil, err
 	}
 	err = d.qb.DB.SelectContext(ctx, &results, query, args...)
 	if err != nil {
 		d.logger.Error(err)
-		return []model.DriverStatus{}
+		return nil, err
 	}
-	return results
+	return results, nil
 }
 
 func (d *driverStatus) ById(ctx context.Context, id int) (model.DriverStatus, error) {
@@ -87,7 +87,7 @@ func (d *driverStatus) Update(ctx context.Context, status *model.DriverStatus) e
 		d.logger.Error(err)
 		return err
 	}
-	_, err = d.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, d.qb, query, args...)
 	if err != nil {
 		d.logger.Error(err)
 		return err
@@ -101,7 +101,7 @@ func (d *driverStatus) Delete(ctx context.Context, id int) error {
 		d.logger.Error(err)
 		return err
 	}
-	_, err = d.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, d.qb, query, args...)
 	if err != nil {
 		d.logger.Error(err)
 	}

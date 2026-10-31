@@ -7,6 +7,7 @@ import (
 	"corpord-api/pkg/dbx"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -19,6 +20,7 @@ type UserIdentitiesRepository interface {
 	GetByProvider(ctx context.Context, userID int, provider string) (*model.UserIdentity, error)
 	GetProviderByID(ctx context.Context, provider, providerID string) (*model.UserIdentity, error)
 	AddIdentity(ctx context.Context, identity *model.UserIdentity) error
+	CreateUserWithIdentity(ctx context.Context, user *model.UserCreate, identity *model.UserIdentity) (*model.UserDB, error)
 	RemoveIdentity(ctx context.Context, identityID string) error
 }
 
@@ -122,6 +124,35 @@ func (r *userIdentitiesRepo) GetProviderByID(ctx context.Context, provider, prov
 	}
 
 	return &identity, nil
+}
+
+// CreateUserWithIdentity commits both records together. A duplicate identity or
+// email rolls back the inserted user rather than leaving an orphaned account.
+func (r *userIdentitiesRepo) CreateUserWithIdentity(ctx context.Context, user *model.UserCreate, identity *model.UserIdentity) (*model.UserDB, error) {
+	if user == nil || identity == nil {
+		return nil, errors.New("missing SSO user or identity")
+	}
+	tx, err := r.qb.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var userID int
+	if err := tx.QueryRowContext(ctx, `INSERT INTO users (email, password_hash, name) VALUES ($1, NULL, $2) RETURNING id`, user.Email, user.Name).Scan(&userID); err != nil {
+		return nil, fmt.Errorf("insert SSO user: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO user_identities (id, user_id, provider, provider_id) VALUES ($1, $2, $3, $4)`, identity.ID, userID, identity.Provider, identity.ProviderID); err != nil {
+		return nil, fmt.Errorf("insert SSO identity: %w", err)
+	}
+	var created model.UserDB
+	if err := tx.GetContext(ctx, &created, `SELECT u.id, u.email, u.password_hash, u.name, r.name AS role_name, u.created_at, u.updated_at, u.deleted_at FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = $1`, userID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	identity.UserID = userID
+	return &created, nil
 }
 
 // AddIdentity adds a new identity for a user

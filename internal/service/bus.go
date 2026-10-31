@@ -28,6 +28,9 @@ func NewBus(logger *logger.Logger, repo pg.BusRepository) Bus {
 }
 
 func (b *bus) CreateBus(ctx context.Context, bus model.Bus) error {
+	if err := bus.Validate(); err != nil {
+		return err
+	}
 	return b.repo.CreateBus(ctx, bus)
 }
 
@@ -40,8 +43,8 @@ func (b *bus) GetAllBuses(ctx context.Context) ([]model.ViewBus, error) {
 }
 
 func (b *bus) UpdateBus(ctx context.Context, bus model.BusUpdate) error {
-	if bus.Validate() != nil {
-		return ErrNoFields
+	if err := bus.Validate(); err != nil {
+		return err
 	}
 	return b.repo.UpdateBus(ctx, &bus)
 }

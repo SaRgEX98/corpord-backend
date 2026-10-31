@@ -36,6 +36,9 @@ func (b *busCategory) GetById(ctx context.Context, id int) (*model.BusCategory, 
 }
 
 func (b *busCategory) Create(ctx context.Context, category model.BusCategory) error {
+	if err := category.Validate(); err != nil {
+		return err
+	}
 	return b.repo.Create(ctx, category)
 }
 
