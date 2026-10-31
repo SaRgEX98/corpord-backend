@@ -1,6 +1,7 @@
 package config
 
 import (
+	"corpord-api/internal/geo"
 	"fmt"
 	"net"
 	"net/url"
@@ -20,6 +21,12 @@ type Config struct {
 	JWT         JWT
 	SSO         SSO
 	FrontendURL string
+	Geo         Geo
+}
+
+type Geo struct {
+	PhotonBaseURL string
+	Timeout       time.Duration
 }
 
 type App struct {
@@ -108,6 +115,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
+		Geo:         Geo{PhotonBaseURL: getEnv("PHOTON_BASE_URL", ""), Timeout: getDuration("PHOTON_TIMEOUT", 3*time.Second)},
 		FrontendURL: strings.TrimRight(getEnv("FRONTEND_URL", "http://localhost:3000"), "/"),
 		App: App{
 			Env:      getEnv("APP_ENV", "development"),
@@ -189,6 +197,11 @@ func Load() (*Config, error) {
 
 // Validate fails before serving requests when credentials or runtime limits are invalid.
 func (c *Config) Validate() error {
+	if c.Geo.PhotonBaseURL != "" {
+		if _, err := geo.NewClient(c.Geo.PhotonBaseURL, c.Geo.Timeout); err != nil {
+			return fmt.Errorf("invalid PHOTON_BASE_URL or PHOTON_TIMEOUT")
+		}
+	}
 	if len(c.JWT.Secret) < 32 {
 		return fmt.Errorf("JWT_SECRET must contain at least 32 bytes")
 	}
@@ -250,7 +263,7 @@ func validateEnvironment() error {
 			}
 		}
 	}
-	for _, key := range []string{"HTTP_READ_HEADER_TIMEOUT", "HTTP_READ_TIMEOUT", "HTTP_WRITE_TIMEOUT", "HTTP_IDLE_TIMEOUT", "JWT_ACCESS_TTL", "JWT_REFRESH_TTL"} {
+	for _, key := range []string{"HTTP_READ_HEADER_TIMEOUT", "HTTP_READ_TIMEOUT", "HTTP_WRITE_TIMEOUT", "HTTP_IDLE_TIMEOUT", "JWT_ACCESS_TTL", "JWT_REFRESH_TTL", "PHOTON_TIMEOUT"} {
 		if value, ok := os.LookupEnv(key); ok && value != "" {
 			if _, err := time.ParseDuration(value); err != nil {
 				return fmt.Errorf("%s must be a duration", key)

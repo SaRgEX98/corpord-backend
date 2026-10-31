@@ -36,8 +36,15 @@ func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
 }
 
 func (s *stop) Create(ctx context.Context, stop *model.Stop) error {
+	stop.EffectiveTimezone = nil
 	if err := stop.Validate(); err != nil {
 		return err
+	}
+	if stop.CityID != nil && *stop.CityID == 0 {
+		stop.CityID = nil
+	}
+	if stop.Timezone != nil && *stop.Timezone == "" {
+		stop.Timezone = nil
 	}
 	return s.repo.Create(ctx, stop)
 }

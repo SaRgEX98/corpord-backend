@@ -3,6 +3,7 @@ package service
 import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository"
+	"corpord-api/internal/routes"
 	"corpord-api/internal/sso"
 	"corpord-api/internal/token"
 )
@@ -21,6 +22,7 @@ type Service struct {
 	Trip     Trip
 	TripStop TripStop
 	Stop     Stop
+	Routes   *routes.Service
 }
 
 // New creates a new service instance with all dependencies
@@ -38,5 +40,6 @@ func New(logger *logger.Logger, repo *repository.Repository, token token.Manager
 		Trip:     NewTrip(logger, repo.PgRepository.Trip),
 		TripStop: NewTripStop(logger, repo.PgRepository.TripStop),
 		Stop:     NewStop(logger, repo.PgRepository.Stop),
+		Routes:   routes.NewService(repo.PgRepository.Routes),
 	}
 }

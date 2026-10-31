@@ -2,6 +2,7 @@ package pg
 
 import (
 	"corpord-api/internal/logger"
+	"corpord-api/internal/routes"
 	"corpord-api/pkg/dbx"
 )
 
@@ -19,6 +20,7 @@ type PostgresRepository struct {
 	Trip         Trip
 	TripStop     TripStop
 	Stop         Stop
+	Routes       *routes.Repository
 }
 
 func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
@@ -36,5 +38,6 @@ func New(logger *logger.Logger, qb *dbx.QueryBuilder) *PostgresRepository {
 		Trip:         NewTrip(logger, qb),
 		TripStop:     NewTripStop(logger, qb),
 		Stop:         NewStop(logger, qb),
+		Routes:       routes.NewRepository(qb.DB),
 	}
 }

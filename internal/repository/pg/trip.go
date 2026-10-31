@@ -46,7 +46,8 @@ func (t *trip) selectTrips() sq.SelectBuilder {
             'departure_time', to_char(ts.departure_time, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
             'stop_order', ts.stop_order, 'price_to_next', COALESCE(ts.price_to_next, 0),
             'stop', jsonb_build_object('id', s.id, 'name', s.name, 'address', s.address,
-                'latitude', s.latitude, 'longitude', s.longitude)
+                'latitude', s.latitude, 'longitude', s.longitude, 'city_id', s.city_id, 'timezone', s.timezone,
+ 'effective_timezone', COALESCE(s.timezone,(SELECT timezone FROM route_cities c WHERE c.id=s.city_id)))
         ) ORDER BY ts.stop_order, ts.id) FROM trip_stops ts JOIN stops s ON s.id = ts.stop_id
             WHERE ts.trip_id = trips.id), '[]'::jsonb) AS stops`,
 		"trips.created_at", "trips.updated_at").
