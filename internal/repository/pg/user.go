@@ -45,7 +45,7 @@ func (r *userRepository) Create(ctx context.Context, user *model.UserCreate) (*m
 	query, args, err := r.qb.Sq.Insert(TableUsers).
 		Columns("email", "password_hash", "name", "created_at", "updated_at").
 		Values(user.Email, user.Password /* hashedPassword */, user.Name, now, now).
-		Suffix("RETURNING id, email, name, created_at, updated_at").
+		Suffix("RETURNING id, email, name, created_at, updated_at, (SELECT name FROM roles WHERE roles.id = users.role_id) AS role_name").
 		ToSql()
 	if err != nil {
 		r.logger.Errorf("failed to build create user query: %v", err)
@@ -68,14 +68,16 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 
 	// Build the base query
 	query, args, err := r.qb.Sq.Select(
-		"id",
-		"name",
-		"email",
-		"created_at",
-		"updated_at",
+		"u.id",
+		"u.name",
+		"u.email",
+		"r.name AS role_name",
+		"u.created_at",
+		"u.updated_at",
 	).
-		From(TableUsers).
-		OrderBy("id ASC").
+		From(TableUsers + " u").
+		Join("roles r ON r.id = u.role_id").
+		OrderBy("u.id ASC").
 		ToSql()
 
 	if err != nil {
@@ -104,9 +106,10 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 func (r *userRepository) GetByID(ctx context.Context, id int) (*model.UserResponse, error) {
 	r.logger.Infof("fetching user with id: %d", id)
 
-	query, args, err := r.qb.Sq.Select("id", "name", "email", "created_at", "updated_at").
-		From(TableUsers).
-		Where(sq.Eq{"id": id}).
+	query, args, err := r.qb.Sq.Select("u.id", "u.name", "u.email", "r.name AS role_name", "u.created_at", "u.updated_at").
+		From(TableUsers + " u").
+		Join("roles r ON r.id = u.role_id").
+		Where(sq.Eq{"u.id": id}).
 		ToSql()
 	if err != nil {
 		r.logger.Errorf("failed to build query for user id %d: %v", id, err)
@@ -131,9 +134,10 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*model.UserRespon
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.UserDB, error) {
 	r.logger.Infof("fetching user by email: %s", email)
 
-	query, args, err := r.qb.Sq.Select("id", "email", "password_hash", "name", "created_at", "updated_at").
-		From(TableUsers).
-		Where(sq.Eq{"email": email}).
+	query, args, err := r.qb.Sq.Select("u.id", "u.email", "u.password_hash", "u.name", "r.name AS role_name", "u.created_at", "u.updated_at").
+		From(TableUsers + " u").
+		Join("roles r ON r.id = u.role_id").
+		Where(sq.Eq{"u.email": email}).
 		ToSql()
 
 	if err != nil {
