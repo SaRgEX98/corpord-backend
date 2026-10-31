@@ -32,7 +32,7 @@ func NewStop(logger *logger.Logger, qb *dbx.QueryBuilder) Stop {
 func (s *stop) All(ctx context.Context) ([]*model.Stop, error) {
 	var stops []*model.Stop
 	query, args, err := s.qb.Sq.Select(
-		"id",
+		"id", "city_id", "timezone", "COALESCE(timezone,(SELECT timezone FROM route_cities c WHERE c.id=stops.city_id)) AS effective_timezone",
 		"name",
 		"address",
 		"latitude",
@@ -56,7 +56,7 @@ func (s *stop) All(ctx context.Context) ([]*model.Stop, error) {
 func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
 	var result model.Stop
 	query, args, err := s.qb.Sq.Select(
-		"id",
+		"id", "city_id", "timezone", "COALESCE(timezone,(SELECT timezone FROM route_cities c WHERE c.id=stops.city_id)) AS effective_timezone",
 		"name",
 		"address",
 		"latitude",
@@ -80,12 +80,13 @@ func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
 
 func (s *stop) Create(ctx context.Context, stop *model.Stop) error {
 	query, args, err := s.qb.Sq.Insert(TableStop).Columns(
+		"city_id", "timezone",
 		"name",
 		"address",
 		"latitude",
 		"longitude").
 		Values(
-			stop.Name,
+			stop.CityID, stop.Timezone, stop.Name,
 			stop.Address,
 			stop.Latitude,
 			stop.Longitude).

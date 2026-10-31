@@ -25,6 +25,7 @@ type handler struct {
 	ds       *DriverStatus
 	driver   *Driver
 	trip     *Trip
+	routes   *RouteHandler
 	tripStop TripStop
 	stop     Stop
 	sso      *SSOHandler
@@ -51,6 +52,7 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		ds:       NewDriverStatus(logger, s.DS),
 		driver:   NewDriver(logger, s.Driver),
 		trip:     NewTrip(logger, s.Trip),
+		routes:   NewRoutes(s.Routes, cfg.Geo),
 		tripStop: NewTripStop(logger, s.TripStop),
 		stop:     NewStop(logger, s.Stop),
 		sso:      NewSSOHandler(logger, s.Auth, sso, t, ssoOptions...),
@@ -91,6 +93,10 @@ func (h *handler) InitRoutes() *gin.Engine {
 				busStatus.GET("/:id", h.bs.ByID)
 			}
 		}
+		v1.GET("/geo/suggest", h.routes.GeoSuggest)
+		v1.GET("/locations/suggest", h.routes.Suggest)
+		v1.GET("/locations/:id/stops", h.routes.Stops)
+		v1.GET("/locations/:id", h.routes.Location)
 		s := v1.Group("/stops")
 		{
 			s.GET("/", h.stop.All)
@@ -100,6 +106,9 @@ func (h *handler) InitRoutes() *gin.Engine {
 		{
 			trip.GET("/", h.trip.AllShort)
 			trip.GET("/all", h.trip.All)
+			trip.GET("/search", h.routes.Search)
+			trip.GET("/calendar", h.routes.Calendar)
+			trip.POST("/:id/quote", h.routes.Quote)
 			trip.GET("/:id", h.trip.ByID)
 		}
 		ts := v1.Group("/trip_stops")
@@ -125,6 +134,9 @@ func (h *handler) InitRoutes() *gin.Engine {
 			admin := authorized.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(h.logger, model.RoleAdmin))
 			{
+				admin.GET("/cities", h.routes.Cities)
+				admin.POST("/cities", h.routes.SaveCity)
+				admin.PUT("/cities/:id", h.routes.SaveCity)
 				// Add admin routes here
 				// admin.GET("/users", h.user.GetAllUsers)
 				users := admin.Group("/users")
