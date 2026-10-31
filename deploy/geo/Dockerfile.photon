@@ -1,0 +1,10 @@
+FROM eclipse-temurin:21.0.9_10-jre-alpine@sha256:08eecc477dbe3f2e33daac27f36e41daf7f4ec51d2f3396006e54fa41832c74c
+RUN mkdir -p /opt/photon /data && \
+    wget -q -O /opt/photon/photon.jar https://github.com/komoot/photon/releases/download/1.3.0/photon-1.3.0.jar && \
+    echo 'a89707c0045e4807b2a1180e132e68e108d998709f48b6c94b98a6e281f571a5  /opt/photon/photon.jar' | sha256sum -c - && \
+    chown -R 10001:10001 /data
+USER 10001:10001
+WORKDIR /data
+ENV JAVA_TOOL_OPTIONS="-Xms256m -Xmx1024m"
+ENTRYPOINT ["java", "-jar", "/opt/photon/photon.jar"]
+CMD ["serve", "-listen-ip", "0.0.0.0", "-max-results", "10", "-default-language", "ru"]
