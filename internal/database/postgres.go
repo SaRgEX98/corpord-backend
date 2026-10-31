@@ -34,8 +34,9 @@ func NewPostgres(ctx context.Context, cfg *config.Postgres) Pg {
 	}
 
 	// Настройка пула соединений
-	poolConfig.MaxConns = 10
-	poolConfig.MinConns = 2
+	poolConfig.MaxConns = int32(cfg.MaxConns)
+	poolConfig.MinConns = min(2, poolConfig.MaxConns)
+	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second
 	poolConfig.MaxConnLifetime = time.Hour
 	poolConfig.MaxConnIdleTime = 30 * time.Minute
 
@@ -45,7 +46,9 @@ func NewPostgres(ctx context.Context, cfg *config.Postgres) Pg {
 	}
 
 	// Проверяем соединение
-	if err := pool.Ping(ctx); err != nil {
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := pool.Ping(pingCtx); err != nil {
 		log.Fatalf("failed to ping database: %v", err)
 	}
 	db := sqlx.NewDb(stdlib.OpenDBFromPool(pool), "pgx")
@@ -69,11 +72,11 @@ func (p *pg) Ping(ctx context.Context) error {
 }
 
 func (p *pg) Close() {
-	if p.pool != nil {
-		p.pool.Close()
-	}
 	if p.db != nil {
 		p.db.Close()
+	}
+	if p.pool != nil {
+		p.pool.Close()
 	}
 }
 

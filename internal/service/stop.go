@@ -36,6 +36,9 @@ func (s *stop) ByID(ctx context.Context, id int) (*model.Stop, error) {
 }
 
 func (s *stop) Create(ctx context.Context, stop *model.Stop) error {
+	if err := stop.Validate(); err != nil {
+		return err
+	}
 	return s.repo.Create(ctx, stop)
 }
 

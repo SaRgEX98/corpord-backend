@@ -24,14 +24,14 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/admin/bus": {
+        "/admin/bus/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую запись об автобусе (требуются права администратора)",
+                "description": "Создает запись автобуса. Требуется роль admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -41,45 +41,51 @@ const docTemplate = `{
                 "tags": [
                     "admin/bus"
                 ],
-                "summary": "Создать новый автобус (только админ)",
+                "summary": "Создать запись автобуса",
                 "parameters": [
                     {
-                        "description": "Данные автобуса",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Bus"
+                            "$ref": "#/definitions/model.BusCreate"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Автобус успешно создан",
+                    "201": {
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -87,14 +93,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/bus/categories": {
+        "/admin/bus/categories/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую категорию автобуса (только для администраторов)",
+                "description": "Создает запись категории автобусов. Требуется роль admin. Поле name обязательно; id назначается сервером.",
                 "consumes": [
                     "application/json"
                 ],
@@ -104,10 +110,10 @@ const docTemplate = `{
                 "tags": [
                     "admin/bus/categories"
                 ],
-                "summary": "Создать новую категорию автобуса",
+                "summary": "Создать запись категории автобусов",
                 "parameters": [
                     {
-                        "description": "Данные категории",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -118,31 +124,31 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Категория успешно создана",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен. Требуются права администратора",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Категория с таким названием уже существует",
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -163,7 +169,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию о категории автобуса по ID (только для администраторов)",
+                "description": "Обновляет запись категории автобусов по ID из URL. Требуется роль admin. Поле name обязательно; id в JSON игнорируется.",
                 "consumes": [
                     "application/json"
                 ],
@@ -173,17 +179,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/bus/categories"
                 ],
-                "summary": "Обновить категорию автобуса",
+                "summary": "Обновить запись категории автобусов",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID категории",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные категории",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -194,37 +201,37 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Обновленные данные категории",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.BusCategory"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен. Требуются права администратора",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Категория не найдена",
+                        "description": "Запись не найдена",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Категория с таким названием уже существует",
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -243,18 +250,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет категорию автобуса по ID (только для администраторов)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет запись категории автобусов по ID. Требуется роль admin.",
                 "tags": [
                     "admin/bus/categories"
                 ],
-                "summary": "Удалить категорию автобуса",
+                "summary": "Удалить запись категории автобусов",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID категории",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -262,28 +267,34 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Категория успешно удалена"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен. Требуются права администратора",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Категория не найдена",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -297,14 +308,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/bus/statuses": {
+        "/admin/bus/statuses/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую запись статуса автобуса. Доступно только администраторам",
+                "description": "Создает запись статуса автобусов. Требуется роль admin. Поле name обязательно; id назначается сервером.",
                 "consumes": [
                     "application/json"
                 ],
@@ -314,10 +325,10 @@ const docTemplate = `{
                 "tags": [
                     "admin/bus/statuses"
                 ],
-                "summary": "Создать новый статус автобуса",
+                "summary": "Создать запись статуса автобусов",
                 "parameters": [
                     {
-                        "description": "Данные статуса",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -328,25 +339,31 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Статус успешно создан",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен. Требуются права администратора",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -367,7 +384,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет данные статуса автобуса по его идентификатору. Доступно только администраторам",
+                "description": "Обновляет запись статуса автобусов по ID из URL. Требуется роль admin. Поле name обязательно; id в JSON игнорируется.",
                 "consumes": [
                     "application/json"
                 ],
@@ -377,17 +394,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/bus/statuses"
                 ],
-                "summary": "Обновить статус автобуса",
+                "summary": "Обновить запись статуса автобусов",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID статуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные статуса",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -398,31 +416,37 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Обновленные данные статуса",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.BusStatus"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен. Требуются права администратора",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Статус не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -441,18 +465,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет статус автобуса по его идентификатору. Доступно только администраторам",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет запись статуса автобусов по ID. Требуется роль admin.",
                 "tags": [
                     "admin/bus/statuses"
                 ],
-                "summary": "Удалить статус автобуса",
+                "summary": "Удалить запись статуса автобусов",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID статуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -460,28 +482,34 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Статус успешно удален"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен. Требуются права администратора",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Статус не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -502,7 +530,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию об автобусе по ID (требуются права администратора)",
+                "description": "Обновляет запись автобуса по ID из URL. Требуется роль admin. Передавайте только изменяемые поля; пропущенные поля сохраняются.",
                 "consumes": [
                     "application/json"
                 ],
@@ -512,17 +540,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/bus"
                 ],
-                "summary": "Обновить данные автобуса (только админ)",
+                "summary": "Обновить запись автобуса",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID автобуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные автобуса",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -533,37 +562,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные автобуса обновлены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Автобус не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -576,18 +611,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет запись об автобусе по ID (требуются права администратора)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет запись автобуса по ID. Требуется роль admin.",
                 "tags": [
                     "admin/bus"
                 ],
-                "summary": "Удалить автобус (только админ)",
+                "summary": "Удалить запись автобуса",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID автобуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -595,34 +628,40 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Автобус успешно удален"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Автобус не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -630,14 +669,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/driver": {
+        "/admin/driver/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую запись о водителе (требуются права администратора)",
+                "description": "Создает запись водителя. Требуется роль admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -647,10 +686,10 @@ const docTemplate = `{
                 "tags": [
                     "admin/driver"
                 ],
-                "summary": "Создать нового водителя (только админ)",
+                "summary": "Создать запись водителя",
                 "parameters": [
                     {
-                        "description": "Данные водителя",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -661,31 +700,37 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Водитель успешно создан",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -693,40 +738,62 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/driver/status": {
+        "/admin/driver/status/": {
             "post": {
-                "description": "Создание статуса водителя",
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает запись статуса водителя. Требуется роль admin. Поле name обязательно; id назначается сервером.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin/driver/status"
                 ],
-                "summary": "Создать статус водителя",
+                "summary": "Создать запись статуса водителя",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "ID статуса",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Данные статуса",
+                        "description": "Данные запроса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/model.DriverStatus"
                         }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        }
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
-                    "404": {
-                        "description": "Категория не найдена",
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -742,38 +809,74 @@ const docTemplate = `{
         },
         "/admin/driver/status/{id}": {
             "put": {
-                "description": "Изменение статуса по ID",
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Обновляет запись статуса водителя по ID из URL. Требуется роль admin. Поле name обязательно; id в JSON игнорируется.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin/driver/status"
                 ],
-                "summary": "Изменить статус по ID",
+                "summary": "Обновить запись статуса водителя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID статуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Данные запроса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.DriverStatus"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные статуса",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.DriverStatus"
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Категория не найдена",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -787,18 +890,21 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Удаление статуса водителя по ID",
-                "produces": [
-                    "application/json"
+                "security": [
+                    {
+                        "Bearer": []
+                    }
                 ],
+                "description": "Удаляет запись статуса водителя по ID. Требуется роль admin.",
                 "tags": [
                     "admin/driver/status"
                 ],
-                "summary": "Удалить статус водителя",
+                "summary": "Удалить запись статуса водителя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID статуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -806,19 +912,34 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Данные статуса",
-                        "schema": {
-                            "$ref": "#/definitions/model.DriverStatus"
-                        }
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Категория не найдена",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -839,7 +960,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию о водителе по ID (требуются права администратора)",
+                "description": "Обновляет запись водителя по ID из URL. Требуется роль admin. Передайте first_name, last_name, phone_number и status; id в JSON игнорируется.",
                 "consumes": [
                     "application/json"
                 ],
@@ -849,17 +970,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/driver"
                 ],
-                "summary": "Обновить данные водителя (только админ)",
+                "summary": "Обновить запись водителя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID водителя",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные водителя",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -870,37 +992,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные водителя обновлены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Водитель не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -913,18 +1041,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет запись о водителе по ID (требуются права администратора)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет запись водителя по ID. Требуется роль admin.",
                 "tags": [
                     "admin/driver"
                 ],
-                "summary": "Удалить водителя (только админ)",
+                "summary": "Удалить запись водителя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID водителя",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -932,34 +1058,40 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Водитель успешно удален"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Водитель не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -967,14 +1099,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/stops": {
+        "/admin/stops/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую запись остановки (требуются права администратора)",
+                "description": "Создает запись остановки. Требуется роль admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -984,45 +1116,51 @@ const docTemplate = `{
                 "tags": [
                     "admin/stops"
                 ],
-                "summary": "Создать новую остановки (только админ)",
+                "summary": "Создать запись остановки",
                 "parameters": [
                     {
-                        "description": "Данные остановки",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.TripStop"
+                            "$ref": "#/definitions/model.Stop"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Остановка успешно создана",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                            "$ref": "#/definitions/model.Stop"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1037,7 +1175,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию об остановке по ID (требуются права администратора)",
+                "description": "Обновляет запись остановки по ID из URL. Требуется роль admin. Передавайте только изменяемые поля; пропущенные поля сохраняются.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1047,17 +1185,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/stops"
                 ],
-                "summary": "Обновить данные об остановке (только админ)",
+                "summary": "Обновить запись остановки",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID остановки",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные остановки",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1068,37 +1207,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные остановки обновлены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Водитель не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1111,18 +1256,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет запись об остановке по ID (требуются права администратора)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет запись остановки по ID. Требуется роль admin.",
                 "tags": [
                     "admin/stops"
                 ],
-                "summary": "Удалить остановки (только админ)",
+                "summary": "Удалить запись остановки",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID остановки",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1130,34 +1273,40 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Остановка успешно удалена"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Остановка не найдена",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1165,14 +1314,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/trip_stops": {
+        "/admin/trip_stops/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую запись остановки (требуются права администратора)",
+                "description": "Создает запись остановки рейса. Требуется роль admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1182,10 +1331,10 @@ const docTemplate = `{
                 "tags": [
                     "admin/trip_stops"
                 ],
-                "summary": "Создать новую остановки (только админ)",
+                "summary": "Создать запись остановки рейса",
                 "parameters": [
                     {
-                        "description": "Данные остановки",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1196,31 +1345,37 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Остановка успешно создана",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                            "$ref": "#/definitions/model.TripStop"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1235,7 +1390,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию об остановке по ID (требуются права администратора)",
+                "description": "Обновляет запись остановки рейса по ID из URL. Требуется роль admin. Передавайте только изменяемые поля; пропущенные поля сохраняются.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1245,17 +1400,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/trip_stops"
                 ],
-                "summary": "Обновить данные об остановки (только админ)",
+                "summary": "Обновить запись остановки рейса",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID остановки",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные остановки",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1266,37 +1422,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные остановки обновлены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Водитель не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1309,18 +1471,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет запись об остановке по ID (требуются права администратора)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет запись остановки рейса по ID. Требуется роль admin.",
                 "tags": [
                     "admin/trip_stops"
                 ],
-                "summary": "Удалить остановки (только админ)",
+                "summary": "Удалить запись остановки рейса",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID остановки",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1328,34 +1488,40 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Остановка успешно удалена"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Остановка не найдена",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1363,14 +1529,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/trips": {
+        "/admin/trips/": {
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую запись о маршруте (требуются права администратора)",
+                "description": "Создает рейс. Требуется роль admin. ID и временные метки назначаются сервером; status по умолчанию scheduled. Цена неотрицательная, end_time позже start_time.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1380,10 +1546,10 @@ const docTemplate = `{
                 "tags": [
                     "admin/trips"
                 ],
-                "summary": "Создать новый маршрут (только админ)",
+                "summary": "Создать рейс",
                 "parameters": [
                     {
-                        "description": "Данные маршрута",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1394,31 +1560,37 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Маршрут успешно создан",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                            "$ref": "#/definitions/model.Trip"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1433,7 +1605,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию о маршруте по ID (требуются права администратора)",
+                "description": "Обновляет только переданные bus_id, driver_id, start_time, end_time, status, base_price. Разрешено обновление одного start_time. ID берется из URL; created_at и updated_at из JSON игнорируются. Требуется роль admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1443,17 +1615,18 @@ const docTemplate = `{
                 "tags": [
                     "admin/trips"
                 ],
-                "summary": "Обновить данные о маршруте (только админ)",
+                "summary": "Частично обновить рейс",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID маршрута",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные маршрута",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1464,37 +1637,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные маршрута обновлены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/apperrors.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Водитель не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1507,18 +1686,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет запись о маршруте по ID (требуются права администратора)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет рейс по ID. Требуется роль admin.",
                 "tags": [
                     "admin/trips"
                 ],
-                "summary": "Удалить маршрут (только админ)",
+                "summary": "Удалить рейс",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID маршрута",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1526,34 +1703,40 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Маршрут успешно удален"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Маршрут не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Ошибка сервера",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1562,13 +1745,57 @@ const docTemplate = `{
             }
         },
         "/admin/users": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Возвращает пользователей. Требуется роль admin. /users — совместимый административный alias.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/users"
+                ],
+                "summary": "Получить список пользователей",
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.UserResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Создает новую учетную запись пользователя (только для администраторов)",
+                "description": "Создает локальную учетную запись. Требуется роль admin, email, name и пароль длиной 1–72 байта. /users — совместимый административный alias.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1576,12 +1803,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin/users"
                 ],
-                "summary": "Создать нового пользователя",
+                "summary": "Создать пользователя",
                 "parameters": [
                     {
-                        "description": "Данные пользователя",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1592,25 +1819,31 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Пользователь успешно создан",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Пользователь с таким email уже существует",
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1625,13 +1858,82 @@ const docTemplate = `{
             }
         },
         "/admin/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Возвращает пользователя по ID. Требуется роль admin. /users/{id} — совместимый административный alias.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/users"
+                ],
+                "summary": "Получить пользователя по ID",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Положительный ID записи",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Обновляет информацию о пользователе по ID (только для администраторов)",
+                "description": "Обновляет переданные поля пользователя по ID. Требуется роль admin.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1639,19 +1941,20 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin/users"
                 ],
-                "summary": "Обновить данные пользователя",
+                "summary": "Частично обновить пользователя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID пользователя",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Обновленные данные пользователя",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1662,31 +1965,100 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные пользователя обновлены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Пользователь не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Удаляет пользователя по ID. Требуется роль admin. /users/{id} — совместимый административный alias.",
+                "tags": [
+                    "admin/users"
+                ],
+                "summary": "Удалить пользователя",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Положительный ID записи",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Успешный ответ"
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1700,50 +2072,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/buses/{id}": {
-            "get": {
-                "description": "Возвращает информацию об автобусе по его идентификатору",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "buses"
-                ],
-                "summary": "Получить автобус по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID автобуса",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Данные автобуса",
-                        "schema": {
-                            "$ref": "#/definitions/model.Bus"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректный ID",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Автобус не найден",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/auth/login": {
             "post": {
-                "description": "Вход пользователя в систему",
+                "description": "Возвращает access_token и устанавливает HttpOnly cookie refresh_token. Пользователь без локального пароля должен входить через своего SSO-провайдера.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1753,10 +2084,10 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Аутентификация пользователя",
+                "summary": "Вход по email и паролю",
                 "parameters": [
                     {
-                        "description": "Данные для входа",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1767,19 +2098,115 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Успешный вход",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.TokenResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly cookie refresh_token"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Неверные учетные данные",
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "description": "Отзывает refresh token из cookie и удаляет cookie. JSON-тело не требуется. Уже выданный access token действует до истечения его TTL.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Завершить текущую refresh-сессию",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "refresh_token=\u003ctoken\u003e; браузер отправляет cookie автоматически",
+                        "name": "Cookie",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "Удаление cookie refresh_token"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout/all": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Отзывает все refresh tokens пользователя из Bearer access token и удаляет refresh cookie. JSON-тело не требуется. Уже выданные access tokens действуют до истечения TTL.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Завершить все refresh-сессии пользователя",
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.SuccessResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "Удаление cookie refresh_token"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1795,43 +2222,38 @@ const docTemplate = `{
         },
         "/auth/refresh": {
             "post": {
-                "description": "Получение нового access и refresh токенов",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Читает refresh_token из cookie; JSON-тело не требуется и не используется. Старый refresh token погашается один раз, новый устанавливается через Set-Cookie. В JSON возвращается только access_token. Для браузерного запроса отправляйте cookies (credentials: include).",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "auth"
                 ],
-                "summary": "Обновление токена",
+                "summary": "Обновить access token",
                 "parameters": [
                     {
-                        "description": "Refresh токен",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.RefreshRequest"
-                        }
+                        "type": "string",
+                        "description": "refresh_token=\u003ctoken\u003e; браузер отправляет cookie автоматически",
+                        "name": "Cookie",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Новые токены",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.TokenResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Некорректные данные",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "Новая HttpOnly cookie refresh_token"
+                            }
                         }
                     },
                     "401": {
-                        "description": "Просроченный или недействительный токен",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1847,7 +2269,7 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "description": "Создает нового пользователя в системе",
+                "description": "Создает локальную учетную запись и возвращает access_token. Пароль обязателен, длина 1–72 байта. Refresh token устанавливается в HttpOnly cookie refresh_token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1857,10 +2279,10 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Регистрация нового пользователя",
+                "summary": "Регистрация пользователя",
                 "parameters": [
                     {
-                        "description": "Данные пользователя",
+                        "description": "Данные запроса",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -1871,19 +2293,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Успешная регистрация",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.UserResponse"
+                            "$ref": "#/definitions/model.TokenResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly cookie refresh_token"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "409": {
-                        "description": "Пользователь уже существует",
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -1897,47 +2325,180 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/sso/login": {
-            "post": {
-                "description": "Вход пользователя через стороннего провайдера (Google, GitHub и др.)",
-                "consumes": [
-                    "application/json"
-                ],
+        "/auth/{provider}": {
+            "get": {
+                "description": "Создает одноразовый state, браузерную cookie и PKCE verifier; перенаправляет браузер к включенному провайдеру.",
                 "produces": [
+                    "text/html",
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "auth/sso"
                 ],
-                "summary": "Аутентификация через SSO",
+                "summary": "Начать вход через SSO",
                 "parameters": [
                     {
-                        "description": "Данные для SSO входа",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.SSOLoginRequest"
-                        }
+                        "enum": [
+                            "google",
+                            "yandex"
+                        ],
+                        "type": "string",
+                        "description": "SSO-провайдер",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Успешный вход",
+                    "302": {
+                        "description": "Успешный ответ",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "URL авторизации провайдера"
+                            },
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly cookie привязки OAuth-потока"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
                         "schema": {
-                            "$ref": "#/definitions/model.TokenResponse"
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Хранилище SSO временно недоступно",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/{provider}/callback": {
+            "get": {
+                "description": "Проверяет и погашает state, привязанный к браузеру и провайдеру, обменивает code с PKCE, устанавливает refresh cookie и возвращает один redirect на FRONTEND_URL/auth/callback. Токены не включаются в URL. Frontend затем вызывает POST /auth/refresh и GET /users/me с cookies. Совпадение email с существующей учетной записью не привязывает SSO автоматически.",
+                "produces": [
+                    "text/html",
+                    "application/json"
+                ],
+                "tags": [
+                    "auth/sso"
+                ],
+                "summary": "Завершить вход через SSO",
+                "parameters": [
+                    {
+                        "enum": [
+                            "google",
+                            "yandex"
+                        ],
+                        "type": "string",
+                        "description": "SSO-провайдер",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization code; обязателен при успешной авторизации",
+                        "name": "code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Одноразовый state из начала OAuth-потока",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Ошибка или отказ пользователя, возвращенные провайдером",
+                        "name": "error",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cookie привязки потока, установленная в начале SSO",
+                        "name": "Cookie",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Успешный ответ",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "FRONTEND_URL/auth/callback"
+                            },
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly cookie refresh_token; удаление OAuth cookie"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Некорректные данные",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Ошибка авторизации через SSO",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Хранилище SSO временно недоступно",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/bus/": {
+            "get": {
+                "description": "Возвращает список автобусов с идентификаторами записей.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bus"
+                ],
+                "summary": "Получить список автобусов",
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.ViewBus"
+                            }
                         }
                     },
                     "500": {
@@ -1949,19 +2510,19 @@ const docTemplate = `{
                 }
             }
         },
-        "/bus/categories": {
+        "/bus/categories/": {
             "get": {
-                "description": "Возвращает список всех доступных категорий автобусов. Доступно всем пользователям",
+                "description": "Возвращает список категорий автобусов с идентификаторами записей.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "bus/categories"
                 ],
-                "summary": "Получить все категории автобусов",
+                "summary": "Получить список категорий автобусов",
                 "responses": {
                     "200": {
-                        "description": "Список категорий автобусов",
+                        "description": "Успешный ответ",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -1980,18 +2541,19 @@ const docTemplate = `{
         },
         "/bus/categories/{id}": {
             "get": {
-                "description": "Возвращает информацию о статусе водителя по его идентификатору. Доступно всем пользователям",
+                "description": "Возвращает данные категории автобусов по ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "driver/status"
+                    "bus/categories"
                 ],
-                "summary": "Получить статус водителя по ID",
+                "summary": "Получить запись категории автобусов",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID статуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1999,19 +2561,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные статуса",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.DriverStatus"
+                            "$ref": "#/definitions/model.BusCategory"
                         }
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Категория не найдена",
+                        "description": "Запись не найдена",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2025,19 +2587,19 @@ const docTemplate = `{
                 }
             }
         },
-        "/bus/statuses": {
+        "/bus/statuses/": {
             "get": {
-                "description": "Возвращает список всех доступных статусов автобусов. Доступно всем пользователям",
+                "description": "Возвращает список статусов автобусов с идентификаторами записей.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "bus/statuses"
                 ],
-                "summary": "Получить все статусы автобусов",
+                "summary": "Получить список статусов автобусов",
                 "responses": {
                     "200": {
-                        "description": "Список статусов автобусов",
+                        "description": "Успешный ответ",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -2056,18 +2618,19 @@ const docTemplate = `{
         },
         "/bus/statuses/{id}": {
             "get": {
-                "description": "Возвращает данные статуса автобуса по его идентификатору",
+                "description": "Возвращает данные статуса автобусов по ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "bus/statuses"
                 ],
-                "summary": "Получить статус автобуса по ID",
+                "summary": "Получить запись статуса автобусов",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID статуса",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2075,19 +2638,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные статуса",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.BusStatus"
                         }
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Статус не найден",
+                        "description": "Запись не найдена",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2101,23 +2664,71 @@ const docTemplate = `{
                 }
             }
         },
-        "/buses": {
+        "/bus/{id}": {
             "get": {
-                "description": "Возвращает список всех автобусов в системе",
+                "description": "Возвращает данные автобуса по ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "buses"
+                    "bus"
                 ],
-                "summary": "Получить список всех автобусов",
+                "summary": "Получить запись автобуса",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Положительный ID записи",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Список автобусов",
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/model.ViewBus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/driver/": {
+            "get": {
+                "description": "Возвращает список водителей с идентификаторами записей.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "driver"
+                ],
+                "summary": "Получить список водителей",
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Bus"
+                                "$ref": "#/definitions/model.DriverOutput"
                             }
                         }
                     },
@@ -2130,48 +2741,19 @@ const docTemplate = `{
                 }
             }
         },
-        "/driver": {
+        "/driver/status/": {
             "get": {
-                "description": "Возвращает список всех водителей в системе",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "drivers"
-                ],
-                "summary": "Получить список всех водителей",
-                "responses": {
-                    "200": {
-                        "description": "Список водителей",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Driver"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
-                        "schema": {
-                            "$ref": "#/definitions/apperrors.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/driver/status": {
-            "get": {
-                "description": "Возвращает список всех статусов водителя. Доступно всем пользователям",
+                "description": "Возвращает список статусов водителей с идентификаторами записей.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "driver/status"
                 ],
-                "summary": "Получить все статусы водителя",
+                "summary": "Получить список статусов водителей",
                 "responses": {
                     "200": {
-                        "description": "Список статусов водителя",
+                        "description": "Успешный ответ",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -2179,8 +2761,56 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/driver/status/{id}": {
+            "get": {
+                "description": "Возвращает данные статуса водителя по ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "driver/status"
+                ],
+                "summary": "Получить запись статуса водителя",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Положительный ID записи",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/model.DriverStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Ничего не найдено",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2190,18 +2820,19 @@ const docTemplate = `{
         },
         "/driver/{id}": {
             "get": {
-                "description": "Возвращает информацию о водителе по его идентификатору",
+                "description": "Возвращает данные водителя по ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "drivers"
+                    "driver"
                 ],
-                "summary": "Получить водителя по ID",
+                "summary": "Получить запись водителя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID водителя",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2209,19 +2840,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные водителя",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.Driver"
+                            "$ref": "#/definitions/model.DriverOutput"
                         }
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Водитель не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2229,21 +2866,24 @@ const docTemplate = `{
                 }
             }
         },
-        "/stops": {
+        "/stops/": {
             "get": {
-                "description": "Возвращает все остановки в системе",
+                "description": "Возвращает список остановок с идентификаторами записей.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "stops"
                 ],
-                "summary": "Получить все остановки",
+                "summary": "Получить список остановок",
                 "responses": {
                     "200": {
-                        "description": "Модель остановок",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.Stop"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Stop"
+                            }
                         }
                     },
                     "500": {
@@ -2257,18 +2897,19 @@ const docTemplate = `{
         },
         "/stops/{id}": {
             "get": {
-                "description": "Возвращает остановку по ID",
+                "description": "Возвращает данные остановки по ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "stops"
                 ],
-                "summary": "Получить остановку",
+                "summary": "Получить запись остановки",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID остановки",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2276,9 +2917,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Модель пути",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.TripStop"
+                            "$ref": "#/definitions/model.Stop"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
@@ -2290,21 +2943,24 @@ const docTemplate = `{
                 }
             }
         },
-        "/trip_stops": {
+        "/trip_stops/": {
             "get": {
-                "description": "Возвращает все остановки в системе",
+                "description": "Возвращает список остановок рейсов с идентификаторами записей.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trip_stops"
                 ],
-                "summary": "Получить все остановки",
+                "summary": "Получить список остановок рейсов",
                 "responses": {
                     "200": {
-                        "description": "Модель остановок",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.TripStop"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.TripStop"
+                            }
                         }
                     },
                     "500": {
@@ -2318,18 +2974,19 @@ const docTemplate = `{
         },
         "/trip_stops/{id}": {
             "get": {
-                "description": "Возвращает остановку по ID",
+                "description": "Возвращает данные остановки рейса по ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trip_stops"
                 ],
-                "summary": "Получить остановку",
+                "summary": "Получить запись остановки рейса",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID остановки",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2337,9 +2994,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Модель пути",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.TripStop"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
@@ -2351,21 +3020,53 @@ const docTemplate = `{
                 }
             }
         },
-        "/trips": {
+        "/trips/": {
             "get": {
-                "description": "Возвращает онимичную модель для отображения пользователю информации о маршрутах и их остановках",
+                "description": "Возвращает краткие карточки рейсов: trip_id, автобус, водитель, начальная и конечная остановки, время и базовая цена.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trips"
                 ],
-                "summary": "Получить информацию по таблице trip",
+                "summary": "Получить краткий список рейсов",
                 "responses": {
                     "200": {
-                        "description": "Модель остановок",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.TripShortInfo"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.TripShortInfo"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trips/all": {
+            "get": {
+                "description": "Возвращает рейсы с id, вложенными bus и driver с собственными id и массивом stops, отсортированным по stop_order. Рейс без остановок содержит stops: [].",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trips"
+                ],
+                "summary": "Получить полный список рейсов",
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.TripResponse"
+                            }
                         }
                     },
                     "500": {
@@ -2379,18 +3080,19 @@ const docTemplate = `{
         },
         "/trips/{id}": {
             "get": {
-                "description": "Возвращает маршрут в системе по ID",
+                "description": "Возвращает выбранный рейс с отдельными id рейса, автобуса и водителя. Остановки в stops отсортированы по stop_order; end_time может быть null.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "trips"
                 ],
-                "summary": "Получить маршрут",
+                "summary": "Получить рейс по ID",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID маршрута",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2398,9 +3100,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Модель пути",
+                        "description": "Успешный ответ",
                         "schema": {
-                            "$ref": "#/definitions/model.Trip"
+                            "$ref": "#/definitions/model.TripResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "500": {
@@ -2419,17 +3133,17 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Возвращает список всех зарегистрированных пользователей (только для администраторов)",
+                "description": "Возвращает пользователей. Требуется роль admin. /users — совместимый административный alias.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "admin/users"
                 ],
-                "summary": "Получить всех пользователей",
+                "summary": "Получить список пользователей",
                 "responses": {
                     "200": {
-                        "description": "Список пользователей",
+                        "description": "Успешный ответ",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -2438,13 +3152,123 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Создает локальную учетную запись. Требуется роль admin, email, name и пароль длиной 1–72 байта. /users — совместимый административный alias.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin/users"
+                ],
+                "summary": "Создать пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные запроса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Требуются права администратора",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Возвращает профиль пользователя из проверенного access token. ID в запросе не передается.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Получить свой профиль",
+                "responses": {
+                    "200": {
+                        "description": "Успешный ответ",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Требуется аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Запись не найдена",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2465,18 +3289,19 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Возвращает информацию о пользователе по его идентификатору",
+                "description": "Возвращает пользователя по ID. Требуется роль admin. /users/{id} — совместимый административный alias.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "admin/users"
                 ],
                 "summary": "Получить пользователя по ID",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID пользователя",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2484,31 +3309,43 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Данные пользователя",
+                        "description": "Успешный ответ",
                         "schema": {
                             "$ref": "#/definitions/model.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Пользователь не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2521,18 +3358,16 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Удаляет учетную запись пользователя по ID (только для администраторов)",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Удаляет пользователя по ID. Требуется роль admin. /users/{id} — совместимый административный alias.",
                 "tags": [
-                    "users"
+                    "admin/users"
                 ],
                 "summary": "Удалить пользователя",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "ID пользователя",
+                        "description": "Положительный ID записи",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2540,28 +3375,34 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Пользователь успешно удален"
+                        "description": "Успешный ответ"
                     },
                     "400": {
-                        "description": "Некорректный ID",
+                        "description": "Некорректный запрос",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Не авторизован",
+                        "description": "Требуется аутентификация",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Требуются права администратора",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Пользователь не найден",
+                        "description": "Запись не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Конфликт данных или связанных записей",
                         "schema": {
                             "$ref": "#/definitions/apperrors.ErrorResponse"
                         }
@@ -2593,44 +3434,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Bus": {
-            "type": "object",
-            "properties": {
-                "brand": {
-                    "type": "string"
-                },
-                "capacity": {
-                    "type": "integer"
-                },
-                "category": {
-                    "$ref": "#/definitions/model.BusCategory"
-                },
-                "category_id": {
-                    "type": "integer"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "license_plate": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/model.BusStatus"
-                },
-                "status_id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "model.BusCategory": {
             "type": "object",
             "properties": {
@@ -2639,6 +3442,26 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "model.BusCreate": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "type": "integer"
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "license_plate": {
+                    "type": "string"
+                },
+                "status_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -2654,6 +3477,7 @@ const docTemplate = `{
             }
         },
         "model.BusUpdate": {
+            "description": "BusUpdate changes only supplied fields; omitted fields are preserved and ID comes from the URL.",
             "type": "object",
             "properties": {
                 "brand": {
@@ -2665,37 +3489,11 @@ const docTemplate = `{
                 "category_id": {
                     "type": "integer"
                 },
-                "id": {
-                    "type": "integer"
-                },
                 "license_plate": {
                     "type": "string"
                 },
                 "status_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "model.Driver": {
-            "type": "object",
-            "properties": {
-                "first_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "middle_name": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/model.DriverStatus"
                 }
             }
         },
@@ -2719,6 +3517,30 @@ const docTemplate = `{
                 }
             }
         },
+        "model.DriverOutput": {
+            "description": "DriverOutput contains the driver id and a human-readable status name.",
+            "type": "object",
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "middle_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "model.DriverStatus": {
             "type": "object",
             "properties": {
@@ -2730,36 +3552,25 @@ const docTemplate = `{
                 }
             }
         },
-        "model.RefreshRequest": {
+        "model.DriverView": {
             "type": "object",
-            "required": [
-                "refresh_token"
-            ],
             "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.SSOLoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "name",
-                "provider.go",
-                "provider_id"
-            ],
-            "properties": {
-                "email": {
+                "first_name": {
                     "type": "string"
                 },
-                "name": {
+                "id": {
+                    "type": "integer"
+                },
+                "last_name": {
                     "type": "string"
                 },
-                "provider.go": {
+                "middle_name": {
                     "type": "string"
                 },
-                "provider_id": {
+                "phone_number": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -2812,16 +3623,13 @@ const docTemplate = `{
             "properties": {
                 "access_token": {
                     "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
                 }
             }
         },
         "model.Trip": {
+            "description": "Trip contains writable trip fields and server-assigned id, created_at and updated_at in create responses.",
             "type": "object",
             "required": [
-                "base_price",
                 "bus_id",
                 "driver_id",
                 "end_time",
@@ -2829,7 +3637,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "base_price": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "bus_id": {
                     "type": "integer"
@@ -2843,6 +3651,9 @@ const docTemplate = `{
                 "end_time": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "integer"
+                },
                 "start_time": {
                     "type": "string"
                 },
@@ -2854,7 +3665,48 @@ const docTemplate = `{
                 }
             }
         },
+        "model.TripResponse": {
+            "description": "TripResponse contains separate trip, bus and driver identifiers and stops ordered by stop_order. Stops is [] when empty; end_time can be null.",
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "number"
+                },
+                "bus": {
+                    "$ref": "#/definitions/model.ViewBus"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "driver": {
+                    "$ref": "#/definitions/model.DriverView"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "stops": {
+                    "description": "TripStopDetails is an ordered JSON array of trip-stop relations with their stop details.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TripStopDetail"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "model.TripShortInfo": {
+            "description": "TripShortInfo is a compact trip card returned by GET /trips/.",
             "type": "object",
             "properties": {
                 "base_price": {
@@ -2912,6 +3764,36 @@ const docTemplate = `{
                 }
             }
         },
+        "model.TripStopDetail": {
+            "description": "TripStopDetail contains the trip-stop relation id, trip_id and stop_id, schedule, price and the nested stop with its own id.",
+            "type": "object",
+            "properties": {
+                "arrival_time": {
+                    "type": "string"
+                },
+                "departure_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "price_to_next": {
+                    "type": "number"
+                },
+                "stop": {
+                    "$ref": "#/definitions/model.Stop"
+                },
+                "stop_id": {
+                    "type": "integer"
+                },
+                "stop_order": {
+                    "type": "integer"
+                },
+                "trip_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.TripStopUpdate": {
             "type": "object",
             "properties": {
@@ -2936,10 +3818,11 @@ const docTemplate = `{
             }
         },
         "model.TripUpdate": {
+            "description": "TripUpdate changes only supplied trip fields. ID comes from the URL; created_at and updated_at are ignored.",
             "type": "object",
             "properties": {
                 "base_price": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "bus_id": {
                     "type": "integer"
@@ -2952,9 +3835,6 @@ const docTemplate = `{
                 },
                 "end_time": {
                     "type": "string"
-                },
-                "id": {
-                    "type": "integer"
                 },
                 "start_time": {
                     "type": "string"
@@ -2990,9 +3870,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
-                "ip",
-                "password",
-                "user_agent"
+                "password"
             ],
             "properties": {
                 "email": {
@@ -3051,6 +3929,36 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "model.ViewBus": {
+            "description": "ViewBus contains the bus id and human-readable category and status names.",
+            "type": "object",
+            "required": [
+                "brand",
+                "capacity",
+                "id",
+                "license_plate"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "license_plate": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -3066,7 +3974,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Ordering Bus API",

@@ -36,10 +36,16 @@ func (d *driver) ByID(ctx context.Context, id int) (model.DriverOutput, error) {
 }
 
 func (d *driver) Create(ctx context.Context, driver model.DriverInput) error {
+	if err := driver.Validate(); err != nil {
+		return err
+	}
 	return d.repo.Create(ctx, driver)
 }
 
 func (d *driver) Update(ctx context.Context, driver model.DriverInput) error {
+	if err := driver.Validate(); err != nil {
+		return err
+	}
 	return d.repo.Update(ctx, driver)
 }
 

@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"corpord-api/internal/apperrors"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 type Trip struct {
@@ -21,192 +21,152 @@ func NewTrip(logger *logger.Logger, s service.Trip) *Trip {
 	}
 }
 
-// All retrieves a list of all trips
-// @Summary Получить список всех маршрутов
-// @Description Возвращает список всех маршрутов в системе
+// @Summary Получить полный список рейсов
+// @Description Возвращает рейсы с id, вложенными bus и driver с собственными id и массивом stops, отсортированным по stop_order. Рейс без остановок содержит stops: [].
 // @Tags trips
 // @Produce json
-// @Success 200 {array} model.Trip "Список маршрутов"
+// @Success 200 {array} model.TripResponse "Успешный ответ"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /trips [get]
+// @Router /trips/all [get]
 func (h *Trip) All(c *gin.Context) {
-	h.logger.Debug("trips all")
-	trips, err := h.s.All(c.Request.Context())
+	output, err := h.s.All(c.Request.Context())
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, trips)
+	c.JSON(http.StatusOK, output)
 }
 
-// AllShort retrieves a list of short trip info
-// @Summary Получить информацию по таблице trip
-// @Description Возвращает онимичную модель для отображения пользователю информации о маршрутах и их остановках
+// @Summary Получить краткий список рейсов
+// @Description Возвращает краткие карточки рейсов: trip_id, автобус, водитель, начальная и конечная остановки, время и базовая цена.
 // @Tags trips
 // @Produce json
-// @Success 200 {object} model.TripShortInfo "Модель остановок"
+// @Success 200 {array} model.TripShortInfo "Успешный ответ"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /trips [get]
+// @Router /trips/ [get]
 func (h *Trip) AllShort(c *gin.Context) {
-	h.logger.Debug("TripStops AllShort")
-	all, err := h.s.AllShort(c.Request.Context())
+	output, err := h.s.AllShort(c.Request.Context())
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, all)
+	c.JSON(http.StatusOK, output)
 }
 
-// ByID retrieves a single row of trip
-// @Summary Получить маршрут
-// @Description Возвращает маршрут в системе по ID
-// @Param id path int true "ID маршрута"
+// @Summary Получить рейс по ID
+// @Description Возвращает выбранный рейс с отдельными id рейса, автобуса и водителя. Остановки в stops отсортированы по stop_order; end_time может быть null.
 // @Tags trips
 // @Produce json
-// @Success 200 {object} model.Trip "Модель пути"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 200 {object} model.TripResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /trips/{id} [get]
 func (h *Trip) ByID(c *gin.Context) {
-	h.logger.Debug("trips by id")
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-	trip, err := h.s.ById(c.Request.Context(), id)
+	output, err := h.s.ById(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, trip)
+	c.JSON(http.StatusOK, output)
 }
 
-// Create creates a new trip (Admin only)
-// @Summary Создать новый маршрут (только админ)
-// @Description Создает новую запись о маршруте (требуются права администратора)
-// @Security Bearer
+// @Summary Создать рейс
+// @Description Создает рейс. Требуется роль admin. ID и временные метки назначаются сервером; status по умолчанию scheduled. Цена неотрицательная, end_time позже start_time.
 // @Tags admin/trips
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Param input body model.Trip true "Данные маршрута"
-// @Success 201 {object} apperrors.SuccessResponse "Маршрут успешно создан"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
-// @Router /admin/trips [post]
+// @Param input body model.Trip true "Данные запроса"
+// @Success 201 {object} model.Trip "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
+// @Router /admin/trips/ [post]
 func (h *Trip) Create(c *gin.Context) {
-	h.logger.Debug("trips create")
-	var trip model.Trip
-	err := c.ShouldBindJSON(&trip)
-	if err != nil {
-		h.logger.Error(err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
+	var input model.Trip
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
 		return
 	}
-	err = h.s.Create(c.Request.Context(), &trip)
+	err := h.s.Create(c.Request.Context(), &input)
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, trip)
+	c.JSON(http.StatusCreated, input)
 }
 
-// Update updates an existing trip (Admin only)
-// @Summary Обновить данные о маршруте (только админ)
-// @Description Обновляет информацию о маршруте по ID (требуются права администратора)
-// @Security Bearer
+// @Summary Частично обновить рейс
+// @Description Обновляет только переданные bus_id, driver_id, start_time, end_time, status, base_price. Разрешено обновление одного start_time. ID берется из URL; created_at и updated_at из JSON игнорируются. Требуется роль admin.
 // @Tags admin/trips
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Param id path int true "ID маршрута"
-// @Param input body model.TripUpdate true "Обновленные данные маршрута"
-// @Success 200 {object} apperrors.SuccessResponse "Данные маршрута обновлены"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} apperrors.ErrorResponse "Водитель не найден"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Param input body model.TripUpdate true "Данные запроса"
+// @Success 200 {object} apperrors.SuccessResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/trips/{id} [put]
 func (h *Trip) Update(c *gin.Context) {
-	h.logger.Debug("trips update")
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-	}
-	var trip model.TripUpdate
-	err = c.ShouldBindJSON(&trip)
-	if err != nil {
-		h.logger.Error(err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-	trip.ID = id
-	err = h.s.Update(c.Request.Context(), &trip)
+	var input model.TripUpdate
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
+		return
+	}
+	input.ID = id
+	err := h.s.Update(c.Request.Context(), &input)
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
+		return
 	}
-	c.JSON(http.StatusOK, trip)
+	c.JSON(http.StatusOK, apperrors.SuccessResponse{Message: "updated"})
 }
 
-// Delete removes a trip by ID (Admin only)
-// @Summary Удалить маршрут (только админ)
-// @Description Удаляет запись о маршруте по ID (требуются права администратора)
-// @Security Bearer
+// @Summary Удалить рейс
+// @Description Удаляет рейс по ID. Требуется роль admin.
 // @Tags admin/trips
-// @Produce json
-// @Param id path int true "ID маршрута"
-// @Success 204 "Маршрут успешно удален"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен"
-// @Failure 404 {object} apperrors.ErrorResponse "Маршрут не найден"
-// @Failure 500 {object} apperrors.ErrorResponse "Ошибка сервера"
+// @Security Bearer
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 204 "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
+// @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/trips/{id} [delete]
 func (h *Trip) Delete(c *gin.Context) {
-	h.logger.Debug("trips delete")
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		h.logger.Error(err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-		})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-	err = h.s.Delete(c.Request.Context(), id)
+	err := h.s.Delete(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
+		writeDomainError(c, err)
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{
-		"message": "ok",
-	})
+	c.Status(http.StatusNoContent)
 }

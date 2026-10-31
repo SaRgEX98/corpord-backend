@@ -10,37 +10,25 @@ definitions:
       message:
         type: string
     type: object
-  model.Bus:
-    properties:
-      brand:
-        type: string
-      capacity:
-        type: integer
-      category:
-        $ref: '#/definitions/model.BusCategory'
-      category_id:
-        type: integer
-      created_at:
-        type: string
-      deleted_at:
-        type: string
-      id:
-        type: integer
-      license_plate:
-        type: string
-      status:
-        $ref: '#/definitions/model.BusStatus'
-      status_id:
-        type: integer
-      updated_at:
-        type: string
-    type: object
   model.BusCategory:
     properties:
       id:
         type: integer
       name:
         type: string
+    type: object
+  model.BusCreate:
+    properties:
+      brand:
+        type: string
+      capacity:
+        type: integer
+      category_id:
+        type: integer
+      license_plate:
+        type: string
+      status_id:
+        type: integer
     type: object
   model.BusStatus:
     properties:
@@ -50,6 +38,8 @@ definitions:
         type: string
     type: object
   model.BusUpdate:
+    description: BusUpdate changes only supplied fields; omitted fields are preserved
+      and ID comes from the URL.
     properties:
       brand:
         type: string
@@ -57,27 +47,10 @@ definitions:
         type: integer
       category_id:
         type: integer
-      id:
-        type: integer
       license_plate:
         type: string
       status_id:
         type: integer
-    type: object
-  model.Driver:
-    properties:
-      first_name:
-        type: string
-      id:
-        type: integer
-      last_name:
-        type: string
-      middle_name:
-        type: string
-      phone_number:
-        type: string
-      status:
-        $ref: '#/definitions/model.DriverStatus'
     type: object
   model.DriverInput:
     properties:
@@ -92,6 +65,22 @@ definitions:
       status:
         type: integer
     type: object
+  model.DriverOutput:
+    description: DriverOutput contains the driver id and a human-readable status name.
+    properties:
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      middle_name:
+        type: string
+      phone_number:
+        type: string
+      status:
+        type: string
+    type: object
   model.DriverStatus:
     properties:
       id:
@@ -99,28 +88,20 @@ definitions:
       name:
         type: string
     type: object
-  model.RefreshRequest:
+  model.DriverView:
     properties:
-      refresh_token:
+      first_name:
         type: string
-    required:
-    - refresh_token
-    type: object
-  model.SSOLoginRequest:
-    properties:
-      email:
+      id:
+        type: integer
+      last_name:
         type: string
-      name:
+      middle_name:
         type: string
-      provider:
+      phone_number:
         type: string
-      provider_id:
+      status:
         type: string
-    required:
-    - email
-    - name
-    - provider
-    - provider_id
     type: object
   model.Stop:
     properties:
@@ -154,13 +135,13 @@ definitions:
     properties:
       access_token:
         type: string
-      refresh_token:
-        type: string
     type: object
   model.Trip:
+    description: Trip contains writable trip fields and server-assigned id, created_at
+      and updated_at in create responses.
     properties:
       base_price:
-        type: integer
+        type: number
       bus_id:
         type: integer
       created_at:
@@ -169,6 +150,8 @@ definitions:
         type: integer
       end_time:
         type: string
+      id:
+        type: integer
       start_time:
         type: string
       status:
@@ -176,13 +159,42 @@ definitions:
       updated_at:
         type: string
     required:
-    - base_price
     - bus_id
     - driver_id
     - end_time
     - start_time
     type: object
+  model.TripResponse:
+    description: TripResponse contains separate trip, bus and driver identifiers and
+      stops ordered by stop_order. Stops is [] when empty; end_time can be null.
+    properties:
+      base_price:
+        type: number
+      bus:
+        $ref: '#/definitions/model.ViewBus'
+      created_at:
+        type: string
+      driver:
+        $ref: '#/definitions/model.DriverView'
+      end_time:
+        type: string
+      id:
+        type: integer
+      start_time:
+        type: string
+      status:
+        type: string
+      stops:
+        description: TripStopDetails is an ordered JSON array of trip-stop relations
+          with their stop details.
+        items:
+          $ref: '#/definitions/model.TripStopDetail'
+        type: array
+      updated_at:
+        type: string
+    type: object
   model.TripShortInfo:
+    description: TripShortInfo is a compact trip card returned by GET /trips/.
     properties:
       base_price:
         type: number
@@ -220,6 +232,27 @@ definitions:
       trip_id:
         type: integer
     type: object
+  model.TripStopDetail:
+    description: TripStopDetail contains the trip-stop relation id, trip_id and stop_id,
+      schedule, price and the nested stop with its own id.
+    properties:
+      arrival_time:
+        type: string
+      departure_time:
+        type: string
+      id:
+        type: integer
+      price_to_next:
+        type: number
+      stop:
+        $ref: '#/definitions/model.Stop'
+      stop_id:
+        type: integer
+      stop_order:
+        type: integer
+      trip_id:
+        type: integer
+    type: object
   model.TripStopUpdate:
     properties:
       arrival_time:
@@ -236,9 +269,11 @@ definitions:
         type: integer
     type: object
   model.TripUpdate:
+    description: TripUpdate changes only supplied trip fields. ID comes from the URL;
+      created_at and updated_at are ignored.
     properties:
       base_price:
-        type: integer
+        type: number
       bus_id:
         type: integer
       created_at:
@@ -247,8 +282,6 @@ definitions:
         type: integer
       end_time:
         type: string
-      id:
-        type: integer
       start_time:
         type: string
       status:
@@ -281,9 +314,7 @@ definitions:
         type: string
     required:
     - email
-    - ip
     - password
-    - user_agent
     type: object
   model.UserResponse:
     properties:
@@ -313,7 +344,28 @@ definitions:
       password:
         type: string
     type: object
-host: localhost:8080
+  model.ViewBus:
+    description: ViewBus contains the bus id and human-readable category and status
+      names.
+    properties:
+      brand:
+        type: string
+      capacity:
+        type: integer
+      category:
+        type: string
+      id:
+        type: integer
+      license_plate:
+        type: string
+      status:
+        type: string
+    required:
+    - brand
+    - capacity
+    - id
+    - license_plate
+    type: object
 info:
   contact:
     email: luchitstimofei@yandex.ru
@@ -327,96 +379,105 @@ info:
   title: Ordering Bus API
   version: "1.0"
 paths:
-  /admin/bus:
+  /admin/bus/:
     post:
       consumes:
       - application/json
-      description: Создает новую запись об автобусе (требуются права администратора)
+      description: Создает запись автобуса. Требуется роль admin.
       parameters:
-      - description: Данные автобуса
+      - description: Данные запроса
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/model.Bus'
+          $ref: '#/definitions/model.BusCreate'
       produces:
       - application/json
       responses:
-        "200":
-          description: Автобус успешно создан
+        "201":
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать новый автобус (только админ)
+      summary: Создать запись автобуса
       tags:
       - admin/bus
   /admin/bus/{id}:
     delete:
-      description: Удаляет запись об автобусе по ID (требуются права администратора)
+      description: Удаляет запись автобуса по ID. Требуется роль admin.
       parameters:
-      - description: ID автобуса
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Автобус успешно удален
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Автобус не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить автобус (только админ)
+      summary: Удалить запись автобуса
       tags:
       - admin/bus
     put:
       consumes:
       - application/json
-      description: Обновляет информацию об автобусе по ID (требуются права администратора)
+      description: Обновляет запись автобуса по ID из URL. Требуется роль admin. Передавайте
+        только изменяемые поля; пропущенные поля сохраняются.
       parameters:
-      - description: ID автобуса
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные автобуса
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -426,41 +487,46 @@ paths:
       - application/json
       responses:
         "200":
-          description: Данные автобуса обновлены
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Автобус не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить данные автобуса (только админ)
+      summary: Обновить запись автобуса
       tags:
       - admin/bus
-  /admin/bus/categories:
+  /admin/bus/categories/:
     post:
       consumes:
       - application/json
-      description: Создает новую категорию автобуса (только для администраторов)
+      description: Создает запись категории автобусов. Требуется роль admin. Поле
+        name обязательно; id назначается сервером.
       parameters:
-      - description: Данные категории
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -470,23 +536,23 @@ paths:
       - application/json
       responses:
         "201":
-          description: Категория успешно создана
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен. Требуются права администратора
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "409":
-          description: Категория с таким названием уже существует
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -495,37 +561,40 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать новую категорию автобуса
+      summary: Создать запись категории автобусов
       tags:
       - admin/bus/categories
   /admin/bus/categories/{id}:
     delete:
-      description: Удаляет категорию автобуса по ID (только для администраторов)
+      description: Удаляет запись категории автобусов по ID. Требуется роль admin.
       parameters:
-      - description: ID категории
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Категория успешно удалена
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен. Требуются права администратора
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Категория не найдена
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -534,20 +603,22 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить категорию автобуса
+      summary: Удалить запись категории автобусов
       tags:
       - admin/bus/categories
     put:
       consumes:
       - application/json
-      description: Обновляет информацию о категории автобуса по ID (только для администраторов)
+      description: Обновляет запись категории автобусов по ID из URL. Требуется роль
+        admin. Поле name обязательно; id в JSON игнорируется.
       parameters:
-      - description: ID категории
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные категории
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -557,27 +628,27 @@ paths:
       - application/json
       responses:
         "200":
-          description: Обновленные данные категории
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/model.BusCategory'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен. Требуются права администратора
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Категория не найдена
+          description: Запись не найдена
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "409":
-          description: Категория с таким названием уже существует
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -586,16 +657,17 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить категорию автобуса
+      summary: Обновить запись категории автобусов
       tags:
       - admin/bus/categories
-  /admin/bus/statuses:
+  /admin/bus/statuses/:
     post:
       consumes:
       - application/json
-      description: Создает новую запись статуса автобуса. Доступно только администраторам
+      description: Создает запись статуса автобусов. Требуется роль admin. Поле name
+        обязательно; id назначается сервером.
       parameters:
-      - description: Данные статуса
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -605,19 +677,23 @@ paths:
       - application/json
       responses:
         "201":
-          description: Статус успешно создан
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен. Требуются права администратора
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -626,38 +702,40 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать новый статус автобуса
+      summary: Создать запись статуса автобусов
       tags:
       - admin/bus/statuses
   /admin/bus/statuses/{id}:
     delete:
-      description: Удаляет статус автобуса по его идентификатору. Доступно только
-        администраторам
+      description: Удаляет запись статуса автобусов по ID. Требуется роль admin.
       parameters:
-      - description: ID статуса
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Статус успешно удален
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен. Требуются права администратора
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Статус не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -666,21 +744,22 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить статус автобуса
+      summary: Удалить запись статуса автобусов
       tags:
       - admin/bus/statuses
     put:
       consumes:
       - application/json
-      description: Обновляет данные статуса автобуса по его идентификатору. Доступно
-        только администраторам
+      description: Обновляет запись статуса автобусов по ID из URL. Требуется роль
+        admin. Поле name обязательно; id в JSON игнорируется.
       parameters:
-      - description: ID статуса
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные статуса
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -690,23 +769,27 @@ paths:
       - application/json
       responses:
         "200":
-          description: Обновленные данные статуса
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/model.BusStatus'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен. Требуются права администратора
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Статус не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -715,16 +798,16 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить статус автобуса
+      summary: Обновить запись статуса автобусов
       tags:
       - admin/bus/statuses
-  /admin/driver:
+  /admin/driver/:
     post:
       consumes:
       - application/json
-      description: Создает новую запись о водителе (требуются права администратора)
+      description: Создает запись водителя. Требуется роль admin.
       parameters:
-      - description: Данные водителя
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -734,80 +817,89 @@ paths:
       - application/json
       responses:
         "201":
-          description: Водитель успешно создан
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать нового водителя (только админ)
+      summary: Создать запись водителя
       tags:
       - admin/driver
   /admin/driver/{id}:
     delete:
-      description: Удаляет запись о водителе по ID (требуются права администратора)
+      description: Удаляет запись водителя по ID. Требуется роль admin.
       parameters:
-      - description: ID водителя
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Водитель успешно удален
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Водитель не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить водителя (только админ)
+      summary: Удалить запись водителя
       tags:
       - admin/driver
     put:
       consumes:
       - application/json
-      description: Обновляет информацию о водителе по ID (требуются права администратора)
+      description: Обновляет запись водителя по ID из URL. Требуется роль admin. Передайте
+        first_name, last_name, phone_number и status; id в JSON игнорируется.
       parameters:
-      - description: ID водителя
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные водителя
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -817,216 +909,278 @@ paths:
       - application/json
       responses:
         "200":
-          description: Данные водителя обновлены
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Водитель не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить данные водителя (только админ)
+      summary: Обновить запись водителя
       tags:
       - admin/driver
-  /admin/driver/status:
-    post:
-      description: Создание статуса водителя
-      parameters:
-      - description: ID статуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные статуса
-          schema:
-            $ref: '#/definitions/model.DriverStatus'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Категория не найдена
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Создать статус водителя
-      tags:
-      - admin/driver/status
-  /admin/driver/status/{id}:
-    delete:
-      description: Удаление статуса водителя по ID
-      parameters:
-      - description: ID статуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: Данные статуса
-          schema:
-            $ref: '#/definitions/model.DriverStatus'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Категория не найдена
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Удалить статус водителя
-      tags:
-      - admin/driver/status
-    put:
-      description: Изменение статуса по ID
-      parameters:
-      - description: ID статуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные статуса
-          schema:
-            $ref: '#/definitions/model.DriverStatus'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Категория не найдена
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Изменить статус по ID
-      tags:
-      - admin/driver/status
-  /admin/stops:
+  /admin/driver/status/:
     post:
       consumes:
       - application/json
-      description: Создает новую запись остановки (требуются права администратора)
+      description: Создает запись статуса водителя. Требуется роль admin. Поле name
+        обязательно; id назначается сервером.
       parameters:
-      - description: Данные остановки
+      - description: Данные запроса
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/model.TripStop'
+          $ref: '#/definitions/model.DriverStatus'
       produces:
       - application/json
       responses:
         "201":
-          description: Остановка успешно создана
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать новую остановки (только админ)
+      summary: Создать запись статуса водителя
+      tags:
+      - admin/driver/status
+  /admin/driver/status/{id}:
+    delete:
+      description: Удаляет запись статуса водителя по ID. Требуется роль admin.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Успешный ответ
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить запись статуса водителя
+      tags:
+      - admin/driver/status
+    put:
+      consumes:
+      - application/json
+      description: Обновляет запись статуса водителя по ID из URL. Требуется роль
+        admin. Поле name обязательно; id в JSON игнорируется.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: Данные запроса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.DriverStatus'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Обновить запись статуса водителя
+      tags:
+      - admin/driver/status
+  /admin/stops/:
+    post:
+      consumes:
+      - application/json
+      description: Создает запись остановки. Требуется роль admin.
+      parameters:
+      - description: Данные запроса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Stop'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.Stop'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать запись остановки
       tags:
       - admin/stops
   /admin/stops/{id}:
     delete:
-      description: Удаляет запись об остановке по ID (требуются права администратора)
+      description: Удаляет запись остановки по ID. Требуется роль admin.
       parameters:
-      - description: ID остановки
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Остановка успешно удалена
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Остановка не найдена
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить остановки (только админ)
+      summary: Удалить запись остановки
       tags:
       - admin/stops
     put:
       consumes:
       - application/json
-      description: Обновляет информацию об остановке по ID (требуются права администратора)
+      description: Обновляет запись остановки по ID из URL. Требуется роль admin.
+        Передавайте только изменяемые поля; пропущенные поля сохраняются.
       parameters:
-      - description: ID остановки
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные остановки
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -1036,41 +1190,45 @@ paths:
       - application/json
       responses:
         "200":
-          description: Данные остановки обновлены
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Водитель не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить данные об остановке (только админ)
+      summary: Обновить запись остановки
       tags:
       - admin/stops
-  /admin/trip_stops:
+  /admin/trip_stops/:
     post:
       consumes:
       - application/json
-      description: Создает новую запись остановки (требуются права администратора)
+      description: Создает запись остановки рейса. Требуется роль admin.
       parameters:
-      - description: Данные остановки
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -1080,80 +1238,89 @@ paths:
       - application/json
       responses:
         "201":
-          description: Остановка успешно создана
+          description: Успешный ответ
           schema:
-            $ref: '#/definitions/apperrors.SuccessResponse'
+            $ref: '#/definitions/model.TripStop'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать новую остановки (только админ)
+      summary: Создать запись остановки рейса
       tags:
       - admin/trip_stops
   /admin/trip_stops/{id}:
     delete:
-      description: Удаляет запись об остановке по ID (требуются права администратора)
+      description: Удаляет запись остановки рейса по ID. Требуется роль admin.
       parameters:
-      - description: ID остановки
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Остановка успешно удалена
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Остановка не найдена
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить остановки (только админ)
+      summary: Удалить запись остановки рейса
       tags:
       - admin/trip_stops
     put:
       consumes:
       - application/json
-      description: Обновляет информацию об остановке по ID (требуются права администратора)
+      description: Обновляет запись остановки рейса по ID из URL. Требуется роль admin.
+        Передавайте только изменяемые поля; пропущенные поля сохраняются.
       parameters:
-      - description: ID остановки
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные остановки
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -1163,41 +1330,47 @@ paths:
       - application/json
       responses:
         "200":
-          description: Данные остановки обновлены
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Водитель не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить данные об остановки (только админ)
+      summary: Обновить запись остановки рейса
       tags:
       - admin/trip_stops
-  /admin/trips:
+  /admin/trips/:
     post:
       consumes:
       - application/json
-      description: Создает новую запись о маршруте (требуются права администратора)
+      description: Создает рейс. Требуется роль admin. ID и временные метки назначаются
+        сервером; status по умолчанию scheduled. Цена неотрицательная, end_time позже
+        start_time.
       parameters:
-      - description: Данные маршрута
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -1207,80 +1380,90 @@ paths:
       - application/json
       responses:
         "201":
-          description: Маршрут успешно создан
+          description: Успешный ответ
           schema:
-            $ref: '#/definitions/apperrors.SuccessResponse'
+            $ref: '#/definitions/model.Trip'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Создать новый маршрут (только админ)
+      summary: Создать рейс
       tags:
       - admin/trips
   /admin/trips/{id}:
     delete:
-      description: Удаляет запись о маршруте по ID (требуются права администратора)
+      description: Удаляет рейс по ID. Требуется роль admin.
       parameters:
-      - description: ID маршрута
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
-          description: Маршрут успешно удален
+          description: Успешный ответ
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Маршрут не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Удалить маршрут (только админ)
+      summary: Удалить рейс
       tags:
       - admin/trips
     put:
       consumes:
       - application/json
-      description: Обновляет информацию о маршруте по ID (требуются права администратора)
+      description: Обновляет только переданные bus_id, driver_id, start_time, end_time,
+        status, base_price. Разрешено обновление одного start_time. ID берется из
+        URL; created_at и updated_at из JSON игнорируются. Требуется роль admin.
       parameters:
-      - description: ID маршрута
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
-      - description: Обновленные данные маршрута
+      - description: Данные запроса
         in: body
         name: input
         required: true
@@ -1290,614 +1473,57 @@ paths:
       - application/json
       responses:
         "200":
-          description: Данные маршрута обновлены
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/apperrors.SuccessResponse'
         "400":
-          description: Некорректные данные
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Водитель не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
-          description: Ошибка сервера
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Обновить данные о маршруте (только админ)
+      summary: Частично обновить рейс
       tags:
       - admin/trips
   /admin/users:
-    post:
-      consumes:
-      - application/json
-      description: Создает новую учетную запись пользователя (только для администраторов)
-      parameters:
-      - description: Данные пользователя
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.UserCreate'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Пользователь успешно создан
-          schema:
-            $ref: '#/definitions/model.UserResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "409":
-          description: Пользователь с таким email уже существует
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      security:
-      - Bearer: []
-      summary: Создать нового пользователя
-      tags:
-      - admin
-  /admin/users/{id}:
-    put:
-      consumes:
-      - application/json
-      description: Обновляет информацию о пользователе по ID (только для администраторов)
-      parameters:
-      - description: ID пользователя
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Обновленные данные пользователя
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.UserUpdate'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные пользователя обновлены
-          schema:
-            $ref: '#/definitions/model.UserResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "403":
-          description: Доступ запрещен
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Пользователь не найден
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      security:
-      - Bearer: []
-      summary: Обновить данные пользователя
-      tags:
-      - admin
-  /api/v1/buses/{id}:
     get:
-      description: Возвращает информацию об автобусе по его идентификатору
-      parameters:
-      - description: ID автобуса
-        in: path
-        name: id
-        required: true
-        type: integer
+      description: Возвращает пользователей. Требуется роль admin. /users — совместимый
+        административный alias.
       produces:
       - application/json
       responses:
         "200":
-          description: Данные автобуса
-          schema:
-            $ref: '#/definitions/model.Bus'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Автобус не найден
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить автобус по ID
-      tags:
-      - buses
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Вход пользователя в систему
-      parameters:
-      - description: Данные для входа
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.UserLogin'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Успешный вход
-          schema:
-            $ref: '#/definitions/model.TokenResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "401":
-          description: Неверные учетные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Аутентификация пользователя
-      tags:
-      - auth
-  /auth/refresh:
-    post:
-      consumes:
-      - application/json
-      description: Получение нового access и refresh токенов
-      parameters:
-      - description: Refresh токен
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.RefreshRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Новые токены
-          schema:
-            $ref: '#/definitions/model.TokenResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "401":
-          description: Просроченный или недействительный токен
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Обновление токена
-      tags:
-      - auth
-  /auth/register:
-    post:
-      consumes:
-      - application/json
-      description: Создает нового пользователя в системе
-      parameters:
-      - description: Данные пользователя
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.UserCreate'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Успешная регистрация
-          schema:
-            $ref: '#/definitions/model.UserResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "409":
-          description: Пользователь уже существует
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Регистрация нового пользователя
-      tags:
-      - auth
-  /auth/sso/login:
-    post:
-      consumes:
-      - application/json
-      description: Вход пользователя через стороннего провайдера (Google, GitHub и
-        др.)
-      parameters:
-      - description: Данные для SSO входа
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/model.SSOLoginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Успешный вход
-          schema:
-            $ref: '#/definitions/model.TokenResponse'
-        "400":
-          description: Некорректные данные
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "401":
-          description: Ошибка авторизации через SSO
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Аутентификация через SSO
-      tags:
-      - auth
-  /bus/categories:
-    get:
-      description: Возвращает список всех доступных категорий автобусов. Доступно
-        всем пользователям
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список категорий автобусов
-          schema:
-            items:
-              $ref: '#/definitions/model.BusCategory'
-            type: array
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить все категории автобусов
-      tags:
-      - bus/categories
-  /bus/categories/{id}:
-    get:
-      description: Возвращает информацию о статусе водителя по его идентификатору.
-        Доступно всем пользователям
-      parameters:
-      - description: ID статуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные статуса
-          schema:
-            $ref: '#/definitions/model.DriverStatus'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Категория не найдена
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить статус водителя по ID
-      tags:
-      - driver/status
-  /bus/statuses:
-    get:
-      description: Возвращает список всех доступных статусов автобусов. Доступно всем
-        пользователям
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список статусов автобусов
-          schema:
-            items:
-              $ref: '#/definitions/model.BusStatus'
-            type: array
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить все статусы автобусов
-      tags:
-      - bus/statuses
-  /bus/statuses/{id}:
-    get:
-      description: Возвращает данные статуса автобуса по его идентификатору
-      parameters:
-      - description: ID статуса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные статуса
-          schema:
-            $ref: '#/definitions/model.BusStatus'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Статус не найден
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить статус автобуса по ID
-      tags:
-      - bus/statuses
-  /buses:
-    get:
-      description: Возвращает список всех автобусов в системе
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список автобусов
-          schema:
-            items:
-              $ref: '#/definitions/model.Bus'
-            type: array
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить список всех автобусов
-      tags:
-      - buses
-  /driver:
-    get:
-      description: Возвращает список всех водителей в системе
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список водителей
-          schema:
-            items:
-              $ref: '#/definitions/model.Driver'
-            type: array
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить список всех водителей
-      tags:
-      - drivers
-  /driver/{id}:
-    get:
-      description: Возвращает информацию о водителе по его идентификатору
-      parameters:
-      - description: ID водителя
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Данные водителя
-          schema:
-            $ref: '#/definitions/model.Driver'
-        "400":
-          description: Некорректный ID
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-        "404":
-          description: Водитель не найден
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить водителя по ID
-      tags:
-      - drivers
-  /driver/status:
-    get:
-      description: Возвращает список всех статусов водителя. Доступно всем пользователям
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список статусов водителя
-          schema:
-            items:
-              $ref: '#/definitions/model.DriverStatus'
-            type: array
-        "404":
-          description: Ничего не найдено
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить все статусы водителя
-      tags:
-      - driver/status
-  /stops:
-    get:
-      description: Возвращает все остановки в системе
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Модель остановок
-          schema:
-            $ref: '#/definitions/model.Stop'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить все остановки
-      tags:
-      - stops
-  /stops/{id}:
-    get:
-      description: Возвращает остановку по ID
-      parameters:
-      - description: ID остановки
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Модель пути
-          schema:
-            $ref: '#/definitions/model.TripStop'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить остановку
-      tags:
-      - stops
-  /trip_stops:
-    get:
-      description: Возвращает все остановки в системе
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Модель остановок
-          schema:
-            $ref: '#/definitions/model.TripStop'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить все остановки
-      tags:
-      - trip_stops
-  /trip_stops/{id}:
-    get:
-      description: Возвращает остановку по ID
-      parameters:
-      - description: ID остановки
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Модель пути
-          schema:
-            $ref: '#/definitions/model.TripStop'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить остановку
-      tags:
-      - trip_stops
-  /trips:
-    get:
-      description: Возвращает онимичную модель для отображения пользователю информации
-        о маршрутах и их остановках
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Модель остановок
-          schema:
-            $ref: '#/definitions/model.TripShortInfo'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить информацию по таблице trip
-      tags:
-      - trips
-  /trips/{id}:
-    get:
-      description: Возвращает маршрут в системе по ID
-      parameters:
-      - description: ID маршрута
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Модель пути
-          schema:
-            $ref: '#/definitions/model.Trip'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/apperrors.ErrorResponse'
-      summary: Получить маршрут
-      tags:
-      - trips
-  /users:
-    get:
-      description: Возвращает список всех зарегистрированных пользователей (только
-        для администраторов)
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Список пользователей
+          description: Успешный ответ
           schema:
             items:
               $ref: '#/definitions/model.UserResponse'
             type: array
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -1906,37 +1532,85 @@ paths:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
-      summary: Получить всех пользователей
+      summary: Получить список пользователей
       tags:
-      - users
-  /users/{id}:
-    delete:
-      description: Удаляет учетную запись пользователя по ID (только для администраторов)
+      - admin/users
+    post:
+      consumes:
+      - application/json
+      description: Создает локальную учетную запись. Требуется роль admin, email,
+        name и пароль длиной 1–72 байта. /users — совместимый административный alias.
       parameters:
-      - description: ID пользователя
-        in: path
-        name: id
+      - description: Данные запроса
+        in: body
+        name: input
         required: true
-        type: integer
+        schema:
+          $ref: '#/definitions/model.UserCreate'
       produces:
       - application/json
       responses:
-        "204":
-          description: Пользователь успешно удален
+        "201":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.UserResponse'
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать пользователя
+      tags:
+      - admin/users
+  /admin/users/{id}:
+    delete:
+      description: Удаляет пользователя по ID. Требуется роль admin. /users/{id} —
+        совместимый административный alias.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Успешный ответ
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Пользователь не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "500":
@@ -1947,12 +1621,14 @@ paths:
       - Bearer: []
       summary: Удалить пользователя
       tags:
-      - users
+      - admin/users
     get:
-      description: Возвращает информацию о пользователе по его идентификатору
+      description: Возвращает пользователя по ID. Требуется роль admin. /users/{id}
+        — совместимый административный alias.
       parameters:
-      - description: ID пользователя
+      - description: Положительный ID записи
         in: path
+        minimum: 1
         name: id
         required: true
         type: integer
@@ -1960,28 +1636,996 @@ paths:
       - application/json
       responses:
         "200":
-          description: Данные пользователя
+          description: Успешный ответ
           schema:
             $ref: '#/definitions/model.UserResponse'
         "400":
-          description: Некорректный ID
+          description: Некорректный запрос
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "401":
-          description: Не авторизован
+          description: Требуется аутентификация
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "403":
-          description: Доступ запрещен
+          description: Требуются права администратора
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
         "404":
-          description: Пользователь не найден
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/apperrors.ErrorResponse'
       security:
       - Bearer: []
       summary: Получить пользователя по ID
+      tags:
+      - admin/users
+    put:
+      consumes:
+      - application/json
+      description: Обновляет переданные поля пользователя по ID. Требуется роль admin.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: Данные запроса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Частично обновить пользователя
+      tags:
+      - admin/users
+  /auth/{provider}:
+    get:
+      description: Создает одноразовый state, браузерную cookie и PKCE verifier; перенаправляет
+        браузер к включенному провайдеру.
+      parameters:
+      - description: SSO-провайдер
+        enum:
+        - google
+        - yandex
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - text/html
+      - application/json
+      responses:
+        "302":
+          description: Успешный ответ
+          headers:
+            Location:
+              description: URL авторизации провайдера
+              type: string
+            Set-Cookie:
+              description: HttpOnly cookie привязки OAuth-потока
+              type: string
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "503":
+          description: Хранилище SSO временно недоступно
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Начать вход через SSO
+      tags:
+      - auth/sso
+  /auth/{provider}/callback:
+    get:
+      description: Проверяет и погашает state, привязанный к браузеру и провайдеру,
+        обменивает code с PKCE, устанавливает refresh cookie и возвращает один redirect
+        на FRONTEND_URL/auth/callback. Токены не включаются в URL. Frontend затем
+        вызывает POST /auth/refresh и GET /users/me с cookies. Совпадение email с
+        существующей учетной записью не привязывает SSO автоматически.
+      parameters:
+      - description: SSO-провайдер
+        enum:
+        - google
+        - yandex
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Authorization code; обязателен при успешной авторизации
+        in: query
+        name: code
+        type: string
+      - description: Одноразовый state из начала OAuth-потока
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: Ошибка или отказ пользователя, возвращенные провайдером
+        in: query
+        name: error
+        type: string
+      - description: Cookie привязки потока, установленная в начале SSO
+        in: header
+        name: Cookie
+        required: true
+        type: string
+      produces:
+      - text/html
+      - application/json
+      responses:
+        "302":
+          description: Успешный ответ
+          headers:
+            Location:
+              description: FRONTEND_URL/auth/callback
+              type: string
+            Set-Cookie:
+              description: HttpOnly cookie refresh_token; удаление OAuth cookie
+              type: string
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "503":
+          description: Хранилище SSO временно недоступно
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Завершить вход через SSO
+      tags:
+      - auth/sso
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает access_token и устанавливает HttpOnly cookie refresh_token.
+        Пользователь без локального пароля должен входить через своего SSO-провайдера.
+      parameters:
+      - description: Данные запроса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserLogin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          headers:
+            Set-Cookie:
+              description: HttpOnly cookie refresh_token
+              type: string
+          schema:
+            $ref: '#/definitions/model.TokenResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Вход по email и паролю
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Отзывает refresh token из cookie и удаляет cookie. JSON-тело не
+        требуется. Уже выданный access token действует до истечения его TTL.
+      parameters:
+      - description: refresh_token=<token>; браузер отправляет cookie автоматически
+        in: header
+        name: Cookie
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          headers:
+            Set-Cookie:
+              description: Удаление cookie refresh_token
+              type: string
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Завершить текущую refresh-сессию
+      tags:
+      - auth
+  /auth/logout/all:
+    post:
+      description: Отзывает все refresh tokens пользователя из Bearer access token
+        и удаляет refresh cookie. JSON-тело не требуется. Уже выданные access tokens
+        действуют до истечения TTL.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          headers:
+            Set-Cookie:
+              description: Удаление cookie refresh_token
+              type: string
+          schema:
+            $ref: '#/definitions/apperrors.SuccessResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Завершить все refresh-сессии пользователя
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      description: 'Читает refresh_token из cookie; JSON-тело не требуется и не используется.
+        Старый refresh token погашается один раз, новый устанавливается через Set-Cookie.
+        В JSON возвращается только access_token. Для браузерного запроса отправляйте
+        cookies (credentials: include).'
+      parameters:
+      - description: refresh_token=<token>; браузер отправляет cookie автоматически
+        in: header
+        name: Cookie
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          headers:
+            Set-Cookie:
+              description: Новая HttpOnly cookie refresh_token
+              type: string
+          schema:
+            $ref: '#/definitions/model.TokenResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Обновить access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Создает локальную учетную запись и возвращает access_token. Пароль
+        обязателен, длина 1–72 байта. Refresh token устанавливается в HttpOnly cookie
+        refresh_token.
+      parameters:
+      - description: Данные запроса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Успешный ответ
+          headers:
+            Set-Cookie:
+              description: HttpOnly cookie refresh_token
+              type: string
+          schema:
+            $ref: '#/definitions/model.TokenResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Регистрация пользователя
+      tags:
+      - auth
+  /bus/:
+    get:
+      description: Возвращает список автобусов с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.ViewBus'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список автобусов
+      tags:
+      - bus
+  /bus/{id}:
+    get:
+      description: Возвращает данные автобуса по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.ViewBus'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись автобуса
+      tags:
+      - bus
+  /bus/categories/:
+    get:
+      description: Возвращает список категорий автобусов с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.BusCategory'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список категорий автобусов
+      tags:
+      - bus/categories
+  /bus/categories/{id}:
+    get:
+      description: Возвращает данные категории автобусов по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.BusCategory'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись категории автобусов
+      tags:
+      - bus/categories
+  /bus/statuses/:
+    get:
+      description: Возвращает список статусов автобусов с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.BusStatus'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список статусов автобусов
+      tags:
+      - bus/statuses
+  /bus/statuses/{id}:
+    get:
+      description: Возвращает данные статуса автобусов по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.BusStatus'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись статуса автобусов
+      tags:
+      - bus/statuses
+  /driver/:
+    get:
+      description: Возвращает список водителей с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.DriverOutput'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список водителей
+      tags:
+      - driver
+  /driver/{id}:
+    get:
+      description: Возвращает данные водителя по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.DriverOutput'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись водителя
+      tags:
+      - driver
+  /driver/status/:
+    get:
+      description: Возвращает список статусов водителей с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.DriverStatus'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список статусов водителей
+      tags:
+      - driver/status
+  /driver/status/{id}:
+    get:
+      description: Возвращает данные статуса водителя по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.DriverStatus'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись статуса водителя
+      tags:
+      - driver/status
+  /stops/:
+    get:
+      description: Возвращает список остановок с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.Stop'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список остановок
+      tags:
+      - stops
+  /stops/{id}:
+    get:
+      description: Возвращает данные остановки по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.Stop'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись остановки
+      tags:
+      - stops
+  /trip_stops/:
+    get:
+      description: Возвращает список остановок рейсов с идентификаторами записей.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.TripStop'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить список остановок рейсов
+      tags:
+      - trip_stops
+  /trip_stops/{id}:
+    get:
+      description: Возвращает данные остановки рейса по ID.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.TripStop'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить запись остановки рейса
+      tags:
+      - trip_stops
+  /trips/:
+    get:
+      description: 'Возвращает краткие карточки рейсов: trip_id, автобус, водитель,
+        начальная и конечная остановки, время и базовая цена.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.TripShortInfo'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить краткий список рейсов
+      tags:
+      - trips
+  /trips/{id}:
+    get:
+      description: Возвращает выбранный рейс с отдельными id рейса, автобуса и водителя.
+        Остановки в stops отсортированы по stop_order; end_time может быть null.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.TripResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить рейс по ID
+      tags:
+      - trips
+  /trips/all:
+    get:
+      description: 'Возвращает рейсы с id, вложенными bus и driver с собственными
+        id и массивом stops, отсортированным по stop_order. Рейс без остановок содержит
+        stops: [].'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.TripResponse'
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      summary: Получить полный список рейсов
+      tags:
+      - trips
+  /users:
+    get:
+      description: Возвращает пользователей. Требуется роль admin. /users — совместимый
+        административный alias.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            items:
+              $ref: '#/definitions/model.UserResponse'
+            type: array
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получить список пользователей
+      tags:
+      - admin/users
+    post:
+      consumes:
+      - application/json
+      description: Создает локальную учетную запись. Требуется роль admin, email,
+        name и пароль длиной 1–72 байта. /users — совместимый административный alias.
+      parameters:
+      - description: Данные запроса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создать пользователя
+      tags:
+      - admin/users
+  /users/{id}:
+    delete:
+      description: Удаляет пользователя по ID. Требуется роль admin. /users/{id} —
+        совместимый административный alias.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Успешный ответ
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Удалить пользователя
+      tags:
+      - admin/users
+    get:
+      description: Возвращает пользователя по ID. Требуется роль admin. /users/{id}
+        — совместимый административный alias.
+      parameters:
+      - description: Положительный ID записи
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "403":
+          description: Требуются права администратора
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "409":
+          description: Конфликт данных или связанных записей
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получить пользователя по ID
+      tags:
+      - admin/users
+  /users/me:
+    get:
+      description: Возвращает профиль пользователя из проверенного access token. ID
+        в запросе не передается.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ
+          schema:
+            $ref: '#/definitions/model.UserResponse'
+        "401":
+          description: Требуется аутентификация
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "404":
+          description: Запись не найдена
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/apperrors.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получить свой профиль
       tags:
       - users
 securityDefinitions:

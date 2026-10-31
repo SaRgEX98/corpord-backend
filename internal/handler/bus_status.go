@@ -5,10 +5,8 @@ import (
 	"corpord-api/internal/logger"
 	"corpord-api/internal/service"
 	"corpord-api/model"
-	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 type BusStatusHandler struct {
@@ -23,166 +21,135 @@ func NewBusStatus(logger *logger.Logger, bs service.BusStatus) *BusStatusHandler
 	}
 }
 
-// All godoc
-// @Summary Получить все статусы автобусов
-// @Description Возвращает список всех доступных статусов автобусов. Доступно всем пользователям
+// @Summary Получить список статусов автобусов
+// @Description Возвращает список статусов автобусов с идентификаторами записей.
 // @Tags bus/statuses
 // @Produce json
-// @Success 200 {array} model.BusStatus "Список статусов автобусов"
+// @Success 200 {array} model.BusStatus "Успешный ответ"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /bus/statuses [get]
+// @Router /bus/statuses/ [get]
 func (h *BusStatusHandler) All(c *gin.Context) {
 	output, err := h.bs.All(c.Request.Context())
 	if err != nil {
-		if errors.Is(err, service.ErrBusStatusNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: apperrors.ErrNotFound.Message})
-			return
-		}
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, output)
 }
 
-// ByID godoc
-// @Summary Получить статус автобуса по ID
-// @Description Возвращает данные статуса автобуса по его идентификатору
+// @Summary Получить запись статуса автобусов
+// @Description Возвращает данные статуса автобусов по ID.
 // @Tags bus/statuses
 // @Produce json
-// @Param id path int true "ID статуса"
-// @Success 200 {object} model.BusStatus "Данные статуса"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 404 {object} apperrors.ErrorResponse "Статус не найден"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 200 {object} model.BusStatus "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /bus/statuses/{id} [get]
 func (h *BusStatusHandler) ByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-
 	output, err := h.bs.ByID(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrBusStatusNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: apperrors.ErrNotFound.Message})
-			return
-		}
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, output)
 }
 
-// Create godoc
-// @Summary Создать новый статус автобуса
-// @Description Создает новую запись статуса автобуса. Доступно только администраторам
+// @Summary Создать запись статуса автобусов
+// @Description Создает запись статуса автобусов. Требуется роль admin. Поле name обязательно; id назначается сервером.
 // @Tags admin/bus/statuses
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Security Bearer
-// @Param input body model.BusStatus true "Данные статуса"
-// @Success 201 {object} apperrors.SuccessResponse "Статус успешно создан"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен. Требуются права администратора"
+// @Param input body model.BusStatus true "Данные запроса"
+// @Success 201 {object} apperrors.SuccessResponse "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
-// @Router /admin/bus/statuses [post]
+// @Router /admin/bus/statuses/ [post]
 func (h *BusStatusHandler) Create(c *gin.Context) {
-	var req model.BusStatus
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+	var input model.BusStatus
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
 		return
 	}
-
-	err := h.bs.Create(c.Request.Context(), req)
+	err := h.bs.Create(c.Request.Context(), input)
 	if err != nil {
-		if errors.Is(err, service.ErrBusStatusNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: apperrors.ErrNotFound.Message})
-			return
-		}
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
-	c.JSON(http.StatusCreated, apperrors.SuccessResponse{Message: "Статус успешно создан"})
+	c.JSON(http.StatusCreated, apperrors.SuccessResponse{Message: "created"})
 }
 
-// Update godoc
-// @Summary Обновить статус автобуса
-// @Description Обновляет данные статуса автобуса по его идентификатору. Доступно только администраторам
+// @Summary Обновить запись статуса автобусов
+// @Description Обновляет запись статуса автобусов по ID из URL. Требуется роль admin. Поле name обязательно; id в JSON игнорируется.
 // @Tags admin/bus/statuses
+// @Security Bearer
 // @Accept json
 // @Produce json
-// @Security Bearer
-// @Param id path int true "ID статуса"
-// @Param input body model.BusStatus true "Обновленные данные статуса"
-// @Success 200 {object} model.BusStatus "Обновленные данные статуса"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректные данные"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен. Требуются права администратора"
-// @Failure 404 {object} apperrors.ErrorResponse "Статус не найден"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Param input body model.BusStatus true "Данные запроса"
+// @Success 200 {object} model.BusStatus "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/bus/statuses/{id} [put]
 func (h *BusStatusHandler) Update(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, ok := domainID(c)
+	if !ok {
+		return
+	}
+	var input model.BusStatus
+	if err := c.ShouldBindJSON(&input); err != nil {
+		writeDomainError(c, &model.ValidationError{Message: "Некорректные данные запроса"})
+		return
+	}
+	input.ID = id
+	output, err := h.bs.Update(c.Request.Context(), input)
 	if err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
-	var req model.BusStatus
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
-		return
-	}
-
-	req.ID = id
-	status, err := h.bs.Update(c.Request.Context(), req)
-	if err != nil {
-		if errors.Is(err, service.ErrBusStatusNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: apperrors.ErrNotFound.Message})
-			return
-		}
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
-		return
-	}
-
-	c.JSON(http.StatusOK, status)
+	c.JSON(http.StatusOK, output)
 }
 
-// Delete godoc
-// @Summary Удалить статус автобуса
-// @Description Удаляет статус автобуса по его идентификатору. Доступно только администраторам
+// @Summary Удалить запись статуса автобусов
+// @Description Удаляет запись статуса автобусов по ID. Требуется роль admin.
 // @Tags admin/bus/statuses
-// @Produce json
 // @Security Bearer
-// @Param id path int true "ID статуса"
-// @Success 204 "Статус успешно удален"
-// @Failure 400 {object} apperrors.ErrorResponse "Некорректный ID"
-// @Failure 401 {object} apperrors.ErrorResponse "Не авторизован"
-// @Failure 403 {object} apperrors.ErrorResponse "Доступ запрещен. Требуются права администратора"
-// @Failure 404 {object} apperrors.ErrorResponse "Статус не найден"
+// @Param id path int true "Положительный ID записи" minimum(1)
+// @Success 204 "Успешный ответ"
+// @Failure 400 {object} apperrors.ErrorResponse "Некорректный запрос"
+// @Failure 401 {object} apperrors.ErrorResponse "Требуется аутентификация"
+// @Failure 403 {object} apperrors.ErrorResponse "Требуются права администратора"
+// @Failure 404 {object} apperrors.ErrorResponse "Запись не найдена"
+// @Failure 409 {object} apperrors.ErrorResponse "Конфликт данных или связанных записей"
 // @Failure 500 {object} apperrors.ErrorResponse "Внутренняя ошибка сервера"
 // @Router /admin/bus/statuses/{id} [delete]
 func (h *BusStatusHandler) Delete(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+	id, ok := domainID(c)
+	if !ok {
 		return
 	}
-
-	err = h.bs.Delete(c.Request.Context(), id)
+	err := h.bs.Delete(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, service.ErrBusStatusNotFound) {
-			c.JSON(apperrors.ErrNotFound.Status, apperrors.ErrorResponse{Error: apperrors.ErrNotFound.Message})
-			return
-		}
-		c.JSON(apperrors.ErrBadRequest.Status, apperrors.ErrorResponse{Error: apperrors.ErrBadRequest.Message})
+		h.logger.Error(err)
+		writeDomainError(c, err)
 		return
 	}
-
 	c.Status(http.StatusNoContent)
 }

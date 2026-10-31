@@ -125,11 +125,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*model.UserRespon
 	}
 
 	r.logger.Infof("successfully fetched user with id %d", id)
-	return &model.UserResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
-	}, nil
+	return user.ToResponse(), nil
 }
 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.UserDB, error) {
@@ -198,7 +194,7 @@ func (r *userRepository) Update(ctx context.Context, id int, user *model.UserUpd
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		r.logger.Warnf("failed to get rows affected for user %d update: %v", id, err)
+		return nil, err
 	} else if rowsAffected == 0 {
 		r.logger.Infof("no rows affected when updating user %d - user not found", id)
 		return nil, ErrNotFound
@@ -228,7 +224,7 @@ func (r *userRepository) Delete(ctx context.Context, id int) error {
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		r.logger.Warnf("failed to get rows affected for user %d deletion: %v", id, err)
+		return err
 	} else if rowsAffected == 0 {
 		r.logger.Infof("no rows affected when deleting user %d - user not found", id)
 		return ErrNotFound

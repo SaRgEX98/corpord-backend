@@ -46,7 +46,10 @@ func (s *user) GetByID(ctx context.Context, id int) (*model.UserResponse, error)
 	resp, err := s.r.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Errorf("failed to get user by id %d: %v", id, err)
-		return nil, ErrUserNotFound
+		if errors.Is(err, pg.ErrNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
 	}
 	return resp, nil
 }
@@ -89,8 +92,8 @@ func (s *user) Create(ctx context.Context, userCreate *model.UserCreate) (*model
 	}
 
 	// Хэшируем пароль
-	if userCreate.Password == nil {
-		return nil, errors.New("password required for local user")
+	if userCreate.Password == nil || len(*userCreate.Password) == 0 || len(*userCreate.Password) > 72 {
+		return nil, &model.ValidationError{Message: "password must contain 1 to 72 bytes"}
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*userCreate.Password), bcrypt.DefaultCost)
@@ -112,10 +115,13 @@ func (s *user) Create(ctx context.Context, userCreate *model.UserCreate) (*model
 // Update обновляет пользователя
 func (s *user) Update(ctx context.Context, id int, update *model.UserUpdate) (*model.UserResponse, error) {
 	if err := update.Validate(); err != nil {
-		return nil, err
+		return nil, &model.ValidationError{Message: err.Error()}
 	}
 
 	if update.Password != nil {
+		if len(*update.Password) == 0 || len(*update.Password) > 72 {
+			return nil, &model.ValidationError{Message: "password must contain 1 to 72 bytes"}
+		}
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*update.Password), bcrypt.DefaultCost)
 		if err != nil {
 			s.logger.Errorf("failed to hash password: %v", err)

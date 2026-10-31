@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"corpord-api/internal/logger"
@@ -14,20 +15,25 @@ type Task interface {
 
 // Scheduler управляет периодическим выполнением задач
 type Scheduler struct {
-	logger   *logger.Logger
-	interval time.Duration
-	tasks    []Task
-	ticker   *time.Ticker
-	done     chan struct{}
+	logger    *logger.Logger
+	interval  time.Duration
+	tasks     []Task
+	ctx       context.Context
+	cancel    context.CancelFunc
+	startOnce sync.Once
+	stopOnce  sync.Once
+	wg        sync.WaitGroup
 }
 
 // New создает новый планировщик с заданным интервалом
 func New(logger *logger.Logger, interval time.Duration) *Scheduler {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
 		logger:   logger,
 		interval: interval,
 		tasks:    []Task{},
-		done:     make(chan struct{}),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 }
 
@@ -38,31 +44,39 @@ func (s *Scheduler) AddTask(t Task) {
 
 // Start запускает планировщик
 func (s *Scheduler) Start() {
-	s.ticker = time.NewTicker(s.interval)
-	go func() {
-		for {
-			select {
-			case <-s.ticker.C:
-				s.runTasks()
-			case <-s.done:
-				s.ticker.Stop()
-				return
+	s.startOnce.Do(func() {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			ticker := time.NewTicker(s.interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					s.runTasks()
+				case <-s.ctx.Done():
+					return
+				}
 			}
-		}
-	}()
+		}()
+	})
 }
 
 // Stop останавливает планировщик
 func (s *Scheduler) Stop() {
-	close(s.done)
+	s.stopOnce.Do(s.cancel)
+	s.wg.Wait()
 }
 
 // runTasks выполняет все задачи планировщика
 func (s *Scheduler) runTasks() {
-	ctx, cancel := context.WithTimeout(context.Background(), s.interval)
+	ctx, cancel := context.WithTimeout(s.ctx, s.interval)
 	defer cancel()
 
 	for _, t := range s.tasks {
+		if ctx.Err() != nil {
+			return
+		}
 		if err := t.Run(ctx); err != nil {
 			s.logger.Warnf("scheduler task failed: %v", err)
 		}

@@ -6,8 +6,9 @@ type Token interface {
 
 // UserInfo — всё, что нужно твоей системе.
 type UserInfo struct {
-	Provider   string
-	ProviderID string
-	Email      string
-	Name       string
+	Provider      string
+	ProviderID    string
+	Email         string
+	EmailVerified bool
+	Name          string
 }

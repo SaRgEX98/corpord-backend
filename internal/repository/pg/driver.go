@@ -31,6 +31,7 @@ func NewDriver(logger *logger.Logger, qb *dbx.QueryBuilder) Driver {
 func (d *driver) All(ctx context.Context) ([]model.DriverOutput, error) {
 	d.logger.Debug("All Repository")
 	query, args, err := d.qb.Sq.Select(
+		"drivers.id",
 		"first_name",
 		"last_name",
 		"middle_name",
@@ -54,6 +55,7 @@ func (d *driver) All(ctx context.Context) ([]model.DriverOutput, error) {
 
 func (d *driver) ByID(ctx context.Context, id int) (model.DriverOutput, error) {
 	query, args, err := d.qb.Sq.Select(
+		"drivers.id",
 		"first_name",
 		"last_name",
 		"middle_name",
@@ -116,7 +118,7 @@ func (d *driver) Update(ctx context.Context, driver model.DriverInput) error {
 		return err
 	}
 
-	_, err = d.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, d.qb, query, args...)
 	if err != nil {
 		d.logger.Error("Failed to execute query", err)
 		return err
@@ -132,7 +134,7 @@ func (d *driver) Delete(ctx context.Context, id int) error {
 		d.logger.Error("Failed to build query", err)
 		return err
 	}
-	_, err = d.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, d.qb, query, args...)
 	if err != nil {
 		d.logger.Error("Failed to execute query", err)
 		return err

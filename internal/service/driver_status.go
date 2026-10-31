@@ -8,7 +8,7 @@ import (
 )
 
 type DriverStatus interface {
-	All(ctx context.Context) []model.DriverStatus
+	All(ctx context.Context) ([]model.DriverStatus, error)
 	ById(ctx context.Context, id int) (model.DriverStatus, error)
 	Create(ctx context.Context, status *model.DriverStatus) error
 	Update(ctx context.Context, status *model.DriverStatus) error
@@ -27,7 +27,7 @@ func NewDriverStatus(logger *logger.Logger, repo pg.DriverStatus) DriverStatus {
 	}
 }
 
-func (d *driverStatus) All(ctx context.Context) []model.DriverStatus {
+func (d *driverStatus) All(ctx context.Context) ([]model.DriverStatus, error) {
 	return d.repo.All(ctx)
 }
 
@@ -36,6 +36,9 @@ func (d *driverStatus) ById(ctx context.Context, id int) (model.DriverStatus, er
 }
 
 func (d *driverStatus) Create(ctx context.Context, status *model.DriverStatus) error {
+	if err := status.Validate(); err != nil {
+		return err
+	}
 	return d.repo.Create(ctx, status)
 }
 

@@ -1,7 +1,8 @@
 package model
 
 import (
-	"errors"
+	"math"
+	"strings"
 	"time"
 )
 
@@ -16,7 +17,7 @@ type Stop struct {
 }
 
 type StopUpdate struct {
-	ID        int      `json:"-,omitempty" db:"id"`
+	ID        int      `json:"-" db:"id"`
 	Name      *string  `json:"name" db:"name"`
 	Address   *string  `json:"address" db:"address"`
 	Latitude  *float64 `json:"latitude" db:"latitude"`
@@ -25,7 +26,27 @@ type StopUpdate struct {
 
 func (su *StopUpdate) Validate() error {
 	if su.Name == nil && su.Address == nil && su.Longitude == nil && su.Latitude == nil {
-		return errors.New("no fields specified")
+		return invalidInput("no fields specified")
+	}
+	if (su.Name != nil && strings.TrimSpace(*su.Name) == "") || (su.Address != nil && strings.TrimSpace(*su.Address) == "") {
+		return invalidInput("name and address must not be empty")
+	}
+	if (su.Latitude != nil && !validCoordinate(*su.Latitude, 90)) || (su.Longitude != nil && !validCoordinate(*su.Longitude, 180)) {
+		return invalidInput("coordinates out of range")
+	}
+	return nil
+}
+
+func validCoordinate(v, limit float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= -limit && v <= limit
+}
+
+func (s *Stop) Validate() error {
+	if strings.TrimSpace(s.Name) == "" || strings.TrimSpace(s.Address) == "" {
+		return invalidInput("name and address are required")
+	}
+	if !validCoordinate(s.Latitude, 90) || !validCoordinate(s.Longitude, 180) {
+		return invalidInput("coordinates out of range")
 	}
 	return nil
 }

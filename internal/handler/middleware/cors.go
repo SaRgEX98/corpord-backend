@@ -1,48 +1,71 @@
 package middleware
 
 import (
-	"net/http"
-	"os"
-	"strings"
-
 	"github.com/gin-gonic/gin"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
 )
 
-// CORSMiddleware настраивает CORS для Gin
-func CORSMiddleware() gin.HandlerFunc {
-	// Берем ALLOWED_ORIGINS из env или оставляем пустым
-	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
-	origins := strings.Split(allowedOrigins, ",")
-
-	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-
-		// Разрешаем localhost в dev
-		if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			// Разрешаем только перечисленные origin из ALLOWED_ORIGINS
-			allowed := false
-			for _, o := range origins {
-				if strings.TrimSpace(o) == origin {
-					allowed = true
-					break
-				}
-			}
-			if allowed {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			}
+func normalizedOrigin(raw string) (string, string, bool) {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return "", "", false
+	}
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return "", "", false
 		}
+	}
+	if (u.Scheme == "http" && port == "80") || (u.Scheme == "https" && port == "443") {
+		port = ""
+	}
+	authority := host
+	if strings.Contains(host, ":") {
+		authority = "[" + host + "]"
+	}
+	if port != "" {
+		authority = net.JoinHostPort(host, port)
+	}
+	return u.Scheme + "://" + authority, host, true
+}
 
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-
+func CORSMiddleware() gin.HandlerFunc {
+	allowed := make(map[string]bool)
+	for _, raw := range strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",") {
+		if origin, _, ok := normalizedOrigin(strings.TrimSpace(raw)); ok {
+			allowed[origin] = true
+		}
+	}
+	development := os.Getenv("APP_ENV") == "" || os.Getenv("APP_ENV") == "development"
+	return func(c *gin.Context) {
+		c.Writer.Header().Add("Vary", "Origin")
+		raw := c.GetHeader("Origin")
+		if raw != "" {
+			origin, host, valid := normalizedOrigin(raw)
+			loopback := host == "localhost"
+			if ip := net.ParseIP(host); ip != nil {
+				loopback = ip.IsLoopback()
+			}
+			if !valid || (!allowed[origin] && !(development && loopback)) {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
+			}
+			c.Header("Access-Control-Allow-Origin", raw)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		}
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
-
 		c.Next()
 	}
 }

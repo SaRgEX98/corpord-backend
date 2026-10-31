@@ -44,6 +44,9 @@ func NewManager(cfg *config.JWT) Manager {
 
 // Generate new JWT access token
 func (m *manager) Generate(params GenerateParams) (string, error) {
+	if m.cfg == nil || len(m.cfg.Secret) < 32 {
+		return "", errors.New("JWT secret must contain at least 32 bytes")
+	}
 	expiresAt := time.Now().Add(m.cfg.AccessTokenTTL)
 
 	claims := model.NewClaims(model.NewClaimsParams{
@@ -76,6 +79,9 @@ func (m *manager) GenerateRefreshToken() (string, []byte, error) {
 
 // Validate JWT and return claims
 func (m *manager) Validate(tokenString string) (*model.Claims, error) {
+	if m.cfg == nil || len(m.cfg.Secret) < 32 {
+		return nil, errors.New("JWT secret must contain at least 32 bytes")
+	}
 	token, err := jwt.ParseWithClaims(
 		tokenString,
 		&model.Claims{},
@@ -88,6 +94,9 @@ func (m *manager) Validate(tokenString string) (*model.Claims, error) {
 
 			return []byte(m.cfg.Secret), nil
 		},
+		jwt.WithIssuer("corpord-api"),
+		jwt.WithAudience("corpord-web"),
+		jwt.WithExpirationRequired(),
 	)
 
 	if err != nil {

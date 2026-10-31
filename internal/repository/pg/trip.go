@@ -29,42 +29,42 @@ func NewTrip(logger *logger.Logger, qb *dbx.QueryBuilder) Trip {
 	}
 }
 
-func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
-	query, args, err := t.qb.Sq.Select(
-		"b.license_plate",
-		"b.brand",
-		"b.capacity",
-		"bc.name as category_name",
-		"bs.name as status_name",
-		"d.first_name",
-		"d.last_name",
-		"d.middle_name",
-		"d.phone_number",
-		"ds.name as d_status_name",
-		"start_time",
-		"end_time",
-		"trips.status",
-		"base_price",
-		"(SELECT JSON_AGG(name, address, latitude, longitude) FROM stops WHERE id = 1)",
-		"trips.created_at",
-		"trips.updated_at").
+// selectTrips keeps trip, bus and driver identifiers separate and aggregates stops
+// in one query without duplicating trips that have several stops.
+func (t *trip) selectTrips() sq.SelectBuilder {
+	return t.qb.Sq.Select(
+		"trips.id", "b.id AS \"bus.id\"", "b.license_plate AS \"bus.license_plate\"",
+		"b.brand AS \"bus.brand\"", "b.capacity AS \"bus.capacity\"",
+		"bc.name AS \"bus.category_name\"", "bs.name AS \"bus.status_name\"",
+		"d.id AS \"driver.id\"", "d.first_name AS \"driver.first_name\"",
+		"d.last_name AS \"driver.last_name\"", "d.middle_name AS \"driver.middle_name\"",
+		"d.phone_number AS \"driver.phone_number\"", "ds.name AS \"driver.d_status_name\"",
+		"trips.start_time", "trips.end_time", "trips.status", "trips.base_price",
+		`COALESCE((SELECT jsonb_agg(jsonb_build_object(
+            'id', ts.id, 'trip_id', ts.trip_id, 'stop_id', ts.stop_id,
+            'arrival_time', to_char(ts.arrival_time, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+            'departure_time', to_char(ts.departure_time, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+            'stop_order', ts.stop_order, 'price_to_next', COALESCE(ts.price_to_next, 0),
+            'stop', jsonb_build_object('id', s.id, 'name', s.name, 'address', s.address,
+                'latitude', s.latitude, 'longitude', s.longitude)
+        ) ORDER BY ts.stop_order, ts.id) FROM trip_stops ts JOIN stops s ON s.id = ts.stop_id
+            WHERE ts.trip_id = trips.id), '[]'::jsonb) AS stops`,
+		"trips.created_at", "trips.updated_at").
 		From(TableTrip).
 		Join("bus b ON b.id = trips.bus_id").
 		Join("bus_statuses bs ON bs.id = b.status_id").
 		Join("bus_categories bc ON bc.id = b.category_id").
 		Join("drivers d ON d.id = trips.driver_id").
-		Join("driver_status ds ON ds.id = d.status").
-		Join("trip_stops ts ON trips.id = ts.trip_id").
-		Join("stops s ON s.id = ts.stop_id").
-		ToSql()
+		Join("driver_status ds ON ds.id = d.status")
+}
+
+func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
+	query, args, err := t.selectTrips().OrderBy("trips.id").ToSql()
 	if err != nil {
-		t.logger.Error(err)
 		return nil, err
 	}
-	var trips []*model.TripResponse
-	err = t.qb.DB.SelectContext(ctx, &trips, query, args...)
-	if err != nil {
-		t.logger.Error(err)
+	trips := make([]*model.TripResponse, 0)
+	if err := t.qb.DB.SelectContext(ctx, &trips, query, args...); err != nil {
 		return nil, err
 	}
 	return trips, nil
@@ -104,38 +104,12 @@ func (t *trip) AllShort(ctx context.Context) ([]*model.TripShortInfo, error) {
 }
 
 func (t *trip) ByID(ctx context.Context, id int) (*model.TripResponse, error) {
-	query, args, err := t.qb.Sq.Select(
-		"b.license_plate",
-		"b.brand",
-		"b.capacity",
-		"bc.name as category_name",
-		"bs.name as status_name",
-		"d.first_name",
-		"d.last_name",
-		"d.middle_name",
-		"d.phone_number",
-		"ds.name as d_status_name",
-		"start_time",
-		"end_time",
-		"trips.status",
-		"base_price",
-		"trips.created_at",
-		"trips.updated_at").
-		From(TableTrip).
-		Join("bus b ON b.id = trips.bus_id").
-		Join("bus_statuses bs ON bs.id = b.status_id").
-		Join("bus_categories bc ON bc.id = b.category_id").
-		Join("drivers d ON d.id = trips.driver_id").
-		Join("driver_status ds ON ds.id = d.status").
-		ToSql()
+	query, args, err := t.selectTrips().Where(sq.Eq{"trips.id": id}).ToSql()
 	if err != nil {
-		t.logger.Error(err)
 		return nil, err
 	}
 	var result model.TripResponse
-	err = t.qb.DB.GetContext(ctx, &result, query, args...)
-	if err != nil {
-		t.logger.Error(err)
+	if err := t.qb.DB.GetContext(ctx, &result, query, args...); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -150,12 +124,13 @@ func (t *trip) Create(ctx context.Context, trip *model.Trip) error {
 		"status",
 		"base_price").
 		Values(trip.BusID, trip.DriverID, trip.StartTime, trip.EndTime, trip.Status, trip.BasePrice).
+		Suffix("RETURNING id, created_at, updated_at").
 		ToSql()
 	if err != nil {
 		t.logger.Error(err)
 		return err
 	}
-	_, err = t.qb.DB.ExecContext(ctx, query, args...)
+	err = t.qb.DB.QueryRowxContext(ctx, query, args...).Scan(&trip.ID, &trip.CreatedAt, &trip.UpdatedAt)
 	if err != nil {
 		t.logger.Error(err)
 		return err
@@ -173,7 +148,7 @@ func (t *trip) Update(ctx context.Context, trip *model.TripUpdate) error {
 		t.logger.Error(err)
 		return err
 	}
-	_, err = t.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, t.qb, query, args...)
 	if err != nil {
 		t.logger.Error(err)
 		return err
@@ -189,7 +164,7 @@ func (t *trip) Delete(ctx context.Context, id int) error {
 		t.logger.Error(err)
 		return err
 	}
-	_, err = t.qb.DB.ExecContext(ctx, query, args...)
+	err = execDomainMutation(ctx, t.qb, query, args...)
 	if err != nil {
 		t.logger.Error(err)
 		return err
