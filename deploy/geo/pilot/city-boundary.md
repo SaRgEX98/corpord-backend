@@ -20,7 +20,11 @@ python3 -m venv /tmp/corpord-geo-osmium
 /tmp/corpord-geo-osmium/bin/python -m unittest discover -s deploy/geo/pilot -p test_city_boundary.py -v
 ```
 
-Выходная директория должна отсутствовать. Код читает три прохода: одна relation,
+Выходная директория должна отсутствовать. SHA256 исходного PBF и GeoJSON
+закреплены по проверенному снимку; несовпадение останавливает работу до создания
+выходных файлов. Перед enrichment checksum геометрии проверяется повторно;
+он также сохраняется в provenance каждого дополненного объекта.
+Код читает три прохода: одна relation,
 только её ways, только узлы этих ways. Entity/ID-фильтрация выполняется C++
 `osmium.filter.IdFilter`, Python не получает все узлы региона и не создаёт
 общерегиональный location cache. Проверяется полнота каждого way/node, роли

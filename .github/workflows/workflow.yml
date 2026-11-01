@@ -50,6 +50,15 @@ jobs:
         run: go vet -p 2 ./...
       - name: Tests with race detector and PostgreSQL/Redis integrations
         run: go test -p 2 -race -count=1 ./...
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Offline geometry guards and pilot script syntax
+        run: |
+          python -m venv /tmp/corpord-geo-tests
+          /tmp/corpord-geo-tests/bin/pip install -r deploy/geo/pilot/city-boundary-requirements.txt
+          PYTHONDONTWRITEBYTECODE=1 /tmp/corpord-geo-tests/bin/python -m unittest discover -s deploy/geo/pilot -p test_city_boundary.py -v
+          bash -n deploy/geo/pilot/photon_runtime.sh
 
   build:
     if: >-
