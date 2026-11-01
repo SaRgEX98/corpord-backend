@@ -19,6 +19,8 @@ from shapely.validation import explain_validity
 
 RELATION_ID = 6564910
 SOURCE_URL = 'https://download.geofabrik.de/russia/ural-fed-district-261031.osm.pbf'
+SOURCE_SHA256 = '4b75d5d4d4850bb80999d32844032626545a2068da8b4538cadb154818dc3ec0'
+BOUNDARY_SHA256 = 'a310ff34cedb4d08973a64b63d7a17e511b9f78869c6d48e3484f7103da5a646'
 
 def sha256(path):
     with open(path, 'rb') as stream:
@@ -103,8 +105,15 @@ def eligibility(place, geometry, city, margin_m=100):
         return 'boundary_margin'
     return 'enrich'
 
-def enrich(source_dump, output, feature):
+def feature_bytes(feature):
+    return (json.dumps(feature,ensure_ascii=False)+'\n').encode()
+
+def enrich(source_dump, output, feature, expected_boundary_sha256):
+    if hashlib.sha256(feature_bytes(feature)).hexdigest()!=expected_boundary_sha256:
+        raise ValueError('Boundary checksum mismatch; no enrichment permitted')
     geometry = shape(feature['geometry'])
+    if geometry.is_empty or not geometry.is_valid:
+        raise ValueError('Invalid enrichment geometry')
     city = feature['properties']['tags'].get('name:ru') or feature['properties']['tags']['name']
     counts = Counter()
     with open(source_dump) as inp, open(output,'x') as out:
@@ -119,6 +128,7 @@ def enrich(source_dump, output, feature):
                         place.setdefault('extra',{})['city_provenance'] = {
                             'method':'strict_point_in_exact_city_polygon', 'relation_id':RELATION_ID,
                             'boundary_source_sha256':feature['properties']['source_sha256'],
+                            'boundary_sha256':expected_boundary_sha256,
                             'margin_m':100,'margin_method':'conservative_local_lower_bound',
                             'coordinate_method':'osm_node'}
             out.write(json.dumps(record,ensure_ascii=False)+'\n')
@@ -133,23 +143,28 @@ def main():
     if args.new_output_dir.exists():
         parser.error('Output directory must not exist; preserve baseline and previous versions')
     start = time.monotonic()
+    source_hash = sha256(args.pbf)
+    if source_hash!=SOURCE_SHA256:
+        parser.error('PBF checksum differs from reviewed snapshot; review new source before use')
     geometry,tags,members,node_count = extract_city(args.pbf)
     with osmium.io.Reader(str(args.pbf)) as reader:
         timestamp = reader.header().get('osmosis_replication_timestamp')
     feature = {'type':'Feature','geometry':mapping(geometry),'properties':{
         'relation_id':RELATION_ID,'tags':tags,'members':[{'way_id':i,'role':r} for i,r in members],
-        'source_url':SOURCE_URL,'source_sha256':sha256(args.pbf),'source_timestamp':timestamp,
+        'source_url':SOURCE_URL,'source_sha256':source_hash,'source_timestamp':timestamp,
         'license':'ODbL-1.0','attribution':'© OpenStreetMap contributors',
         'license_url':'https://www.openstreetmap.org/copyright'}}
+    if hashlib.sha256(feature_bytes(feature)).hexdigest()!=BOUNDARY_SHA256:
+        parser.error('Geometry checksum differs from reviewed snapshot; no output/enrichment permitted')
     args.new_output_dir.mkdir(parents=True)
     polygon_path = args.new_output_dir/'city-boundary.geojson'
-    polygon_path.write_text(json.dumps(feature,ensure_ascii=False)+'\n')
+    polygon_path.write_bytes(feature_bytes(feature))
     stats = {'relation_id':RELATION_ID,'way_count':len(members),'node_count':node_count,
         'polygon_count':len(geometry.geoms),'hole_count':sum(len(p.interiors) for p in geometry.geoms),
         'bounds':geometry.bounds,'valid':geometry.is_valid,'boundary_sha256':sha256(polygon_path)}
     if args.enrich_copy:
         stats['baseline_sha256'] = sha256(args.enrich_copy)
-        stats['enrichment'] = enrich(args.enrich_copy,args.new_output_dir/'photon.jsonl',feature)
+        stats['enrichment'] = enrich(args.enrich_copy,args.new_output_dir/'photon.jsonl',feature,BOUNDARY_SHA256)
         stats['enriched_sha256'] = sha256(args.new_output_dir/'photon.jsonl')
     stats.update({'elapsed_seconds':time.monotonic()-start,'rss_kib':resource.getrusage(resource.RUSAGE_SELF).ru_maxrss})
     (args.new_output_dir/'boundary-stats.json').write_text(json.dumps(stats,ensure_ascii=False,indent=2)+'\n')

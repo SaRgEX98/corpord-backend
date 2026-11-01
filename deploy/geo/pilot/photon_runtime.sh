@@ -5,7 +5,10 @@ mode=${1:?Usage: photon_runtime.sh import|serve|stop /absolute/pilot/data}
 pilot_dir=${2:?Absolute pilot data directory required}
 [[ "$pilot_dir" = /* && -f "$pilot_dir/photon.jsonl" ]] || { echo 'Expected absolute directory containing photon.jsonl' >&2; exit 1; }
 image=corpord-photon:1.3.0
-name=corpord-geo-pilot-photon
+name=${PHOTON_PILOT_NAME:-corpord-geo-pilot-photon}
+port=${PHOTON_PILOT_PORT:-2333}
+[[ "$name" =~ ^corpord-geo-pilot-[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || { echo 'Expected an isolated geo pilot container name' >&2; exit 1; }
+[[ "$port" =~ ^[1-9][0-9]{3,4}$ ]] && ((port >= 1024 && port <= 65535)) || { echo 'Invalid pilot port' >&2; exit 1; }
 common=(--memory=3g --memory-swap=3g --cpus=2 --pids-limit=512 --user "$(id -u):$(id -g)" -e JAVA_TOOL_OPTIONS=-Xms256m\ -Xmx1024m -v "$pilot_dir/index:/data" -v "$pilot_dir/photon.jsonl:/import/photon.jsonl:ro")
 case "$mode" in
   import)
@@ -15,7 +18,7 @@ case "$mode" in
     ;;
   serve)
     [[ -d "$pilot_dir/index/photon_data" ]] || { echo 'Index missing' >&2; exit 1; }
-    docker run -d --label corpord.geo.pilot=true --name "$name" -p 127.0.0.1:2333:2322 "${common[@]}" "$image" serve -listen-ip 0.0.0.0 -listen-port 2322 -max-results 10 -default-language ru -query-timeout 3
+    docker run -d --label corpord.geo.pilot=true --name "$name" -p "127.0.0.1:$port:2322" "${common[@]}" "$image" serve -listen-ip 0.0.0.0 -listen-port 2322 -max-results 10 -default-language ru -query-timeout 3
     ;;
   stop)
     docker stop "$name"

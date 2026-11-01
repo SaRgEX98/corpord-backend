@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -46,7 +47,9 @@ class CityBoundaryTests(unittest.TestCase):
             places=[self.place(),self.place(city='Берёзовский'),self.place(60.5,56.5),self.place(way=True)]
             original=json.dumps({'type':'Place','content':places},ensure_ascii=False)+'\n'
             source.write_text(original)
-            counts=boundary.enrich(source,output,{'geometry':mapping(self.geometry),'properties':{'tags':{'name':'Екатеринбург'},'source_sha256':'abc'}})
+            feature={'geometry':mapping(self.geometry),'properties':{'tags':{'name':'Екатеринбург'},'source_sha256':'abc'}}
+            checksum=hashlib.sha256(boundary.feature_bytes(feature)).hexdigest()
+            counts=boundary.enrich(source,output,feature,checksum)
             self.assertEqual(source.read_text(),original)
             rows=json.loads(output.read_text())['content']
             self.assertEqual(rows[0]['address']['city'],'Екатеринбург')
@@ -55,6 +58,8 @@ class CityBoundaryTests(unittest.TestCase):
             self.assertNotIn('city',rows[2]['address'])
             self.assertNotIn('city',rows[3]['address'])
             self.assertEqual(counts['enrich'],1)
-            with self.assertRaises(FileExistsError):boundary.enrich(source,output,{'geometry':mapping(self.geometry),'properties':{'tags':{'name':'Екатеринбург'}}})
+            with self.assertRaises(FileExistsError):boundary.enrich(source,output,feature,checksum)
+            with self.assertRaises(ValueError):boundary.enrich(source,Path(temp)/'tampered.jsonl',feature,'wrong')
+            self.assertFalse((Path(temp)/'tampered.jsonl').exists())
 
 if __name__=='__main__':unittest.main()
