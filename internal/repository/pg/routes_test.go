@@ -214,3 +214,22 @@ func TestRouteMixedUnpricedAndAmbiguousPairs(t *testing.T) {
 		t.Fatalf("ambiguous quote %v", err)
 	}
 }
+
+func TestRouteLocationStopChoicesUseTypedIdentifiers(t *testing.T) {
+	s, _ := routeFixture(t)
+	ctx := context.Background()
+	for id, expected := range map[string]int{"city:2": 2, "stop:70": 1} {
+		items, err := s.Repo.Stops(ctx, id)
+		if err != nil {
+			t.Fatalf("stop choices for %s: %v", id, err)
+		}
+		if len(items) != expected {
+			t.Fatalf("stop choices for %s: got %d, want %d", id, len(items), expected)
+		}
+		for _, item := range items {
+			if item.Type != "stop" || item.Timezone == nil {
+				t.Fatalf("invalid choice: %+v", item)
+			}
+		}
+	}
+}
