@@ -75,7 +75,7 @@ func (r *Repository) Stops(ctx context.Context, id string) ([]Location, error) {
 	}
 	kind, n, _ := ParseID(id)
 	out := []Location{}
-	err := r.DB.SelectContext(ctx, &out, locationSQL+` WHERE type='stop' AND (($1='stop' AND id='stop:'||$2::text) OR ($1='city' AND id IN (SELECT 'stop:'||id FROM stops WHERE city_id=$2))) ORDER BY name,id`, kind, n)
+	err := r.DB.SelectContext(ctx, &out, locationSQL+` WHERE type='stop' AND (($1='stop' AND id='stop:'||($2::integer)::text) OR ($1='city' AND id IN (SELECT 'stop:'||id FROM stops WHERE city_id=$2::integer))) ORDER BY name,id`, kind, n)
 	return out, err
 }
 func (r *Repository) Cities(ctx context.Context) ([]City, error) {
