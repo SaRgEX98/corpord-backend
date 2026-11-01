@@ -18,7 +18,8 @@ BBOX = [60.45, 56.72, 60.75, 56.92]
 
 
 def local(url):
-    if urllib.parse.urlparse(url).hostname not in ('localhost', '127.0.0.1', '::1'):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ('http', 'https') or parsed.hostname not in ('localhost', '127.0.0.1', '::1'):
         raise ValueError('Only loopback pilot services are allowed: ' + url)
     return url
 
@@ -74,16 +75,31 @@ def fixtures(args):
         street = r.get('address', {}).get('street')
         if street and r.get('housenumber'):
             addresses.append((r, street + ' ' + str(r['housenumber'])))
-    # Prefer transport/settlement objects before other named POI, reproducibly by ID.
-    names.sort(key=lambda pair: (pair[0].get('osm_value') not in ('city', 'town', 'bus_station', 'station'), str(pair[0]['object_id'])))
-    for r, name in names[:12]:
-        kind = 'city' if r.get('osm_value') in ('city', 'town', 'village') else 'station' if r.get('osm_value') in ('station', 'bus_station') else 'poi'
+    def category(record):
+        value = record.get('osm_value')
+        if value in ('city', 'town', 'village'):
+            return 'city'
+        if value in ('station', 'bus_station'):
+            return value
+        return 'street' if record.get('address_type') == 'street' or record.get('osm_key') == 'highway' else 'poi'
+    # Keep actual examples of each available class rather than letting stations fill all slots.
+    names.sort(key=lambda pair: (pair[0].get('osm_value') != 'city', str(pair[0]['object_id']), pair[0]['object_type']))
+    selected = []
+    for kind, quota in [('city', 2), ('bus_station', 2), ('station', 2), ('poi', 6)]:
+        selected.extend([pair for pair in names if category(pair[0]) == kind][:quota])
+    for pair in names:
+        if len(selected) >= 12:
+            break
+        if pair not in selected:
+            selected.append(pair)
+    for r, name in selected:
+        kind = category(r)
         add(kind, name, r, True)
     for r, text in addresses[:8]:
         add('address', text, r, True)
-    for r, name in names[:8]:
+    for r, name in selected[:8]:
         add('partial', name[:max(3, len(name) * 2 // 3)], r)
-    for r, name in names[:6]:
+    for r, name in selected[:6]:
         position = max(1, len(name) // 2)
         add('typo', name[:position] + name[position + 1:], r)
     seen = {}
@@ -128,7 +144,7 @@ def run(args):
             value = json.loads(line)
             if value.get('type') == 'Place':
                 for place in value['content']:
-                    imported[(place['object_type'], str(place['object_id']))] = place['centroid']
+                    imported[(place['object_type'], str(place['object_id']))] = place
     report = {'started_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'fixture_sha256': digest(args.fixtures), 'source_sha256': digest(args.source), 'bbox': fixture['bbox'], 'truth_scope': fixture['truth_scope'], 'repeats': args.repeats, 'queries': [], 'failures': []}
     bbox = fixture['bbox']
     latencies = []
@@ -152,10 +168,12 @@ def run(args):
                     key = identity(f)
                     assert key[0] in ('N', 'W', 'R') and key[1].isdigit() and int(key[1]) > 0, 'invalid OSM identity'
                     assert key in imported, 'OSM identity absent from imported source'
-                    assert max(abs(a - b) for a, b in zip(imported[key], f['geometry']['coordinates'])) < .00001, 'centroid differs from imported source'
+                    original = imported[key]
+                    assert max(abs(a - b) for a, b in zip(original['centroid'], f['geometry']['coordinates'])) < .00001, 'centroid differs from imported source'
+                    assert all(f['properties'].get(field) == original[field] for field in ('osm_key', 'osm_value')), 'OSM classification differs from imported source'
                     ids.append(key)
                 assert len(set(ids)) == len(ids), 'duplicate OSM identity'
-                matched = not case['expected_osm'] or tuple(case['expected_osm']) in ids
+                matched = tuple(case['expected_osm']) in ids if case['expected_osm'] else None
                 row['runs'].append({'status': status, 'ms': round(ms, 3), 'ids': ids, 'expected_match': matched, 'features': features})
             except (AssertionError, OSError, ValueError, KeyError, TypeError) as error:
                 row['runs'].append({'error': str(error)})
@@ -209,6 +227,8 @@ def maps(args):
             assert headers.get('Access-Control-Allow-Origin') == 'http://localhost:3000', 'missing CORS'
             assert head.get('ETag') and head.get('Cache-Control'), 'missing cache/ETag'
             bounds = [v / 1e7 for v in struct.unpack_from('<iiii', data, 102)]
+            addressed, entries, contents = struct.unpack_from('<QQQ', data, 72)
+            assert min(addressed, entries, contents) > 0, 'empty PMTiles directory counters'
             assert bounds[0] <= BBOX[0] and bounds[1] <= BBOX[1] and bounds[2] >= BBOX[2] and bounds[3] >= BBOX[3], 'archive bounds do not cover pilot'
             for extra, expected in [({'Range': 'bytes=' + head['Content-Length'] + '-'}, 416), ({'If-None-Match': head['ETag']}, 304)]:
                 try:
@@ -218,7 +238,7 @@ def maps(args):
                 assert actual == expected, f'expected HTTP {expected}, got {actual}'
             _, untrusted, _ = fetch(url, method='HEAD', headers={'Origin': 'https://untrusted.invalid'})
             assert not untrusted.get('Access-Control-Allow-Origin'), 'untrusted origin allowed'
-            checks.append({'style': style_url, 'source': name, 'archive_bytes': int(head['Content-Length']), 'archive_bbox': bounds, 'zoom_range': list(data[100:102]), 'glyph_fonts': sorted(fonts), 'range': 'PASS', 'cyrillic_block': 'PASS', 'note': 'glyph availability is not visual label readability'})
+            checks.append({'style': style_url, 'source': name, 'archive_bytes': int(head['Content-Length']), 'archive_bbox': bounds, 'addressed_tiles': addressed, 'tile_entries': entries, 'tile_contents': contents, 'zoom_range': list(data[100:102]), 'glyph_fonts': sorted(fonts), 'range': 'PASS', 'cyrillic_block': 'PASS', 'note': 'glyph availability is not visual label readability'})
         if style.get('sprite'):
             for ext in ('.json', '.png'):
                 fetch(urllib.parse.urljoin(style_url, style['sprite']) + ext)
