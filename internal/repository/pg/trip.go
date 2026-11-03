@@ -33,7 +33,7 @@ func NewTrip(logger *logger.Logger, qb *dbx.QueryBuilder) Trip {
 // in one query without duplicating trips that have several stops.
 func (t *trip) selectTrips() sq.SelectBuilder {
 	return t.qb.Sq.Select(
-		"trips.id", "b.id AS \"bus.id\"", "b.license_plate AS \"bus.license_plate\"",
+		"trips.is_demo", "trips.id", "b.id AS \"bus.id\"", "b.license_plate AS \"bus.license_plate\"",
 		"b.brand AS \"bus.brand\"", "b.capacity AS \"bus.capacity\"",
 		"bc.name AS \"bus.category_name\"", "bs.name AS \"bus.status_name\"",
 		"d.id AS \"driver.id\"", "d.first_name AS \"driver.first_name\"",
@@ -60,7 +60,7 @@ func (t *trip) selectTrips() sq.SelectBuilder {
 }
 
 func (t *trip) All(ctx context.Context) ([]*model.TripResponse, error) {
-	query, args, err := t.selectTrips().OrderBy("trips.id").ToSql()
+	query, args, err := t.selectTrips().OrderBy("trips.id").Limit(100).ToSql()
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +90,7 @@ func (t *trip) AllShort(ctx context.Context) ([]*model.TripShortInfo, error) {
 		Join("stops s_end ON s_end.id = ts_end.stop_id").
 		Join("bus b ON b.id = trips.bus_id").
 		Join("drivers d ON d.id = trips.driver_id").
+		Limit(100).
 		ToSql()
 	if err != nil {
 		t.logger.Error(err)

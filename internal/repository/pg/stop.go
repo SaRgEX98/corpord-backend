@@ -40,6 +40,7 @@ func (s *stop) All(ctx context.Context) ([]*model.Stop, error) {
 		"created_at",
 		"updated_at").
 		From(TableStop).
+		Limit(100).
 		ToSql()
 	if err != nil {
 		s.logger.Error("failed to build query from database", zap.Error(err))

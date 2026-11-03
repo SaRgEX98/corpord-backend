@@ -169,12 +169,19 @@ func TestRouteCursorRankMappingAndMigrationRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	sections := strings.Split(string(content), "-- +goose Down")
+	catalogMigration, err := os.ReadFile("../../../db/migrations/20261103000100_catalog_search.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalogSections := strings.Split(string(catalogMigration), "-- +goose Down")
+	exec(catalogSections[1])
 	exec(sections[1])
 	var price string
 	if err := s.Repo.DB.Get(&price, `SELECT base_price::text FROM trips WHERE id=80`); err != nil || price != "999.99" {
 		t.Fatalf("rollback lost decimals %s %v", price, err)
 	}
 	exec(sections[0])
+	exec(catalogSections[0])
 }
 
 func loggerForRouteTest() *logger.Logger { return &logger.Logger{SugaredLogger: zap.NewNop().Sugar()} }

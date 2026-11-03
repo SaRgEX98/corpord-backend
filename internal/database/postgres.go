@@ -37,6 +37,10 @@ func NewPostgres(ctx context.Context, cfg *config.Postgres) Pg {
 	poolConfig.MaxConns = int32(cfg.MaxConns)
 	poolConfig.MinConns = min(2, poolConfig.MaxConns)
 	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second
+	// Interactive route queries must not compile a fresh LLVM program per
+	// request. The national-data EXPLAIN/HTTP pilot measured seconds of JIT
+	// overhead for index probes that execute in tens of milliseconds without it.
+	poolConfig.ConnConfig.RuntimeParams["jit"] = "off"
 	poolConfig.MaxConnLifetime = time.Hour
 	poolConfig.MaxConnIdleTime = 30 * time.Minute
 

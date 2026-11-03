@@ -24,6 +24,7 @@ func missing() error {
 func conflict(code, message string) error { return &Error{409, code, message} }
 
 type Location struct {
+	CityName   string   `json:"city_name" db:"city_name"`
 	ID         string   `json:"id" db:"id"`
 	Type       string   `json:"type" db:"type"`
 	Name       string   `json:"name" db:"name"`
@@ -82,6 +83,7 @@ type Availability struct {
 	Seats  *int   `json:"seats"`
 }
 type Segment struct {
+	IsDemo            bool         `json:"is_demo" db:"is_demo"`
 	TripID            int          `json:"trip_id" db:"trip_id"`
 	BoardingRelation  int          `json:"-" db:"boarding_relation"`
 	AlightingRelation int          `json:"-" db:"alighting_relation"`
@@ -176,6 +178,7 @@ type CalendarDay struct {
 	TripCount     int    `json:"trip_count"`
 }
 type Calendar struct {
+	ContainsDemo bool          `json:"contains_demo"`
 	Timezone     string        `json:"timezone"`
 	Month        string        `json:"month"`
 	CalculatedAt time.Time     `json:"calculated_at"`

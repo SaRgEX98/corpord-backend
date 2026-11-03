@@ -77,6 +77,8 @@ func (s *Service) bounds(ctx context.Context, q Search, calendar bool) (string, 
 	return tz, start, end, nil
 }
 func (s *Service) Search(ctx context.Context, q Search) (SearchResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	out := SearchResult{Items: []Segment{}}
 	now := s.Now().UTC()
 	if err := q.Validate(false, now); err != nil {
@@ -107,6 +109,8 @@ func (s *Service) Search(ctx context.Context, q Search) (SearchResult, error) {
 	return out, nil
 }
 func (s *Service) Calendar(ctx context.Context, q Search) (Calendar, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	now := s.Now().UTC()
 	out := Calendar{Month: q.Month, CalculatedAt: now, RuleVersion: RuleVersion, Days: []CalendarDay{}}
 	if err := q.Validate(true, now); err != nil {
@@ -120,18 +124,20 @@ func (s *Service) Calendar(ctx context.Context, q Search) (Calendar, error) {
 	ft, fn, _ := ParseID(q.From)
 	tt, tn, _ := ParseID(q.To)
 	type daily struct {
+		Demo  bool   `db:"demo"`
 		Date  string `db:"date"`
 		Count int    `db:"count"`
 		Min   *int64 `db:"min"`
 	}
 	rows := []daily{}
-	query := `SELECT to_char(departure_time AT TIME ZONE $8,'YYYY-MM-DD') AS date,count(DISTINCT trip_id) AS count,min(amount_minor) AS min FROM (` + segmentSQL + unambiguousSQL + ` AND t.status IN ('scheduled','boarding','delayed') AND a.departure_time>=($5::timestamptz AT TIME ZONE 'UTC') AND a.departure_time<($6::timestamptz AT TIME ZONE 'UTC') AND a.departure_time>($7::timestamptz AT TIME ZONE 'UTC')) segments GROUP BY 1`
+	query := `SELECT to_char(departure_time AT TIME ZONE $8,'YYYY-MM-DD') AS date,count(DISTINCT trip_id) AS count,min(amount_minor) AS min,bool_or(is_demo) AS demo FROM (` + datedSegmentSQL() + unambiguousSQL + ` AND t.status IN ('scheduled','boarding','delayed') AND a.departure_time>=($5::timestamptz AT TIME ZONE 'UTC') AND a.departure_time<($6::timestamptz AT TIME ZONE 'UTC') AND a.departure_time>($7::timestamptz AT TIME ZONE 'UTC')) segments GROUP BY 1`
 	if err = s.Repo.DB.SelectContext(ctx, &rows, query, ft, fn, tt, tn, start, end, now, tz); err != nil {
 		return out, err
 	}
 	byDate := map[string]daily{}
 	for _, r := range rows {
 		byDate[r.Date] = r
+		out.ContainsDemo = out.ContainsDemo || r.Demo
 	}
 	for d := start; d.Before(end); d = d.AddDate(0, 0, 1) {
 		date := d.Format("2006-01-02")
@@ -145,6 +151,8 @@ func (s *Service) Calendar(ctx context.Context, q Search) (Calendar, error) {
 	return out, nil
 }
 func (s *Service) Quote(ctx context.Context, id int, q QuoteRequest) (Quote, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var out Quote
 	if id < 1 || q.BoardingStopID < 1 || q.AlightingStopID < 1 || q.BoardingStopID == q.AlightingStopID || (q.Passengers != 0 && q.Passengers != 1) {
 		return out, invalid("Некорректный участок или число пассажиров")
