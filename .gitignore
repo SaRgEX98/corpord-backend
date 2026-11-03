@@ -33,3 +33,7 @@ go.work.sum
 
 # log file
 *.log
+# Local geodata tooling
+__pycache__/
+*.pyc
+.venv/

@@ -98,6 +98,7 @@ func (b *busRepository) GetAllBuses(ctx context.Context) ([]model.ViewBus, error
 		From("bus").
 		Join("bus_categories ON bus.category_id = bus_categories.id").
 		Join("bus_statuses ON bus.status_id = bus_statuses.id").
+		Limit(100).
 		ToSql()
 
 	if err != nil {

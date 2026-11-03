@@ -29,7 +29,7 @@ func NewBusCategory(logger *logger.Logger, qb *dbx.QueryBuilder) BusCategory {
 }
 
 func (b *busCategory) GetAll(ctx context.Context) ([]model.BusCategory, error) {
-	query, args, err := b.qb.Sq.Select("id", "name").From(TableBusCategories).OrderBy("id").ToSql()
+	query, args, err := b.qb.Sq.Select("id", "name").From(TableBusCategories).OrderBy("id").Limit(100).ToSql()
 	if err != nil {
 		return nil, err
 	}

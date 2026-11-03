@@ -18,69 +18,45 @@ func (r *Repository) Location(ctx context.Context, id string) (Location, error) 
 		return Location{}, err
 	}
 	var loc Location
-	err = r.DB.GetContext(ctx, &loc, locationSQL+` WHERE id=$1`, fmt.Sprintf("%s:%d", kind, n))
+	err = r.DB.GetContext(ctx, &loc, locationSQL+` WHERE kind=$1 AND entity_id=$2`, kind, n)
 	if err == sql.ErrNoRows {
 		return loc, missing()
 	}
 	return loc, err
 }
 
-const locationSQL = `SELECT * FROM (
- SELECT 'city:'||c.id AS id,'city' AS type,c.name,c.region,c.timezone,
- EXISTS(SELECT 1 FROM stops s JOIN trip_stops ts ON ts.stop_id=s.id JOIN trips t ON t.id=ts.trip_id WHERE s.city_id=c.id AND t.status IN ('scheduled','boarding','delayed') AND ts.departure_time>CURRENT_TIMESTAMP AT TIME ZONE 'UTC') AS served,
- 'match' AS rank_reason,'' AS address,NULL::float8 AS latitude,NULL::float8 AS longitude FROM route_cities c
- UNION ALL
- SELECT 'stop:'||s.id,'stop',s.name,COALESCE(c.region,''),COALESCE(s.timezone,c.timezone),
- EXISTS(SELECT 1 FROM trip_stops ts JOIN trips t ON t.id=ts.trip_id WHERE ts.stop_id=s.id AND t.status IN ('scheduled','boarding','delayed') AND ts.departure_time>CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
- 'match',COALESCE(s.address,''),s.latitude::float8,s.longitude::float8 FROM stops s LEFT JOIN route_cities c ON c.id=s.city_id
-) locations`
+// OFFSET 0 keeps each stop's selective departure-index probe ahead of the
+// trip join. PostgreSQL otherwise misestimates city->served-stop correlation
+// and can scan the entire national timetable even for one city.
+const locationServiceSQL = `CASE WHEN cs.kind='city' THEN EXISTS(
+ SELECT 1 FROM (SELECT id FROM stops WHERE city_id=cs.entity_id ORDER BY id OFFSET 0) s
+ CROSS JOIN LATERAL (SELECT ts.trip_id FROM trip_stops ts WHERE ts.stop_id=s.id
+ AND ts.departure_time>CURRENT_TIMESTAMP AT TIME ZONE 'UTC' OFFSET 0) leg
+ CROSS JOIN LATERAL (SELECT 1 FROM trips t WHERE t.id=leg.trip_id AND t.status IN ('scheduled','boarding','delayed') OFFSET 0) active
+ )
+ ELSE EXISTS(SELECT 1 FROM trip_stops ts
+ CROSS JOIN LATERAL (SELECT 1 FROM trips t WHERE t.id=ts.trip_id AND t.status IN ('scheduled','boarding','delayed') OFFSET 0) active
+ WHERE ts.stop_id=cs.entity_id AND ts.departure_time>CURRENT_TIMESTAMP AT TIME ZONE 'UTC') END`
+const locationSQL = `SELECT kind||':'||entity_id AS id,kind AS type,name,region,timezone,
+ ` + locationServiceSQL + ` AS served,
+ 'match' AS rank_reason,address,city_name,latitude,longitude FROM catalog_search cs`
 
 func normal(s string) string {
 	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(s)), "ё", "е")
 }
-func (r *Repository) Suggest(ctx context.Context, q, origin string, limit int) ([]Location, error) {
-	if len([]rune(q)) > 120 || limit < 1 || limit > 20 {
-		return nil, invalid("Некорректный запрос подсказок")
-	}
-	ot, on := "", 0
-	if origin != "" {
-		var err error
-		ot, on, err = ParseID(origin)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = r.Location(ctx, origin); err != nil {
-			return nil, err
-		}
-	}
-	// strpos treats % and _ literally; all user input remains SQL parameters.
-	query := `WITH loc AS (` + locationSQL + `), ranked AS (
- SELECT loc.*,CASE WHEN $1='' THEN 0 WHEN replace(lower(name),'ё','е')=$1 THEN 3 WHEN strpos(replace(lower(name),'ё','е'),$1)=1 THEN 2 ELSE 1 END AS relevance,
- CASE WHEN $2='' THEN false ELSE EXISTS(
- SELECT 1 FROM trip_stops a JOIN stops sa ON sa.id=a.stop_id JOIN trip_stops b ON b.trip_id=a.trip_id AND b.stop_order>a.stop_order JOIN stops sb ON sb.id=b.stop_id JOIN trips t ON t.id=a.trip_id
- WHERE t.status IN ('scheduled','boarding','delayed') AND a.departure_time>CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
- AND (($2='stop' AND sa.id=$3) OR ($2='city' AND sa.city_id=$3))
- AND ((loc.type='stop' AND loc.id='stop:'||sb.id) OR (loc.type='city' AND loc.id='city:'||sb.city_id))) END AS connected,
- COALESCE((SELECT popularity FROM route_cities c WHERE loc.id='city:'||c.id),0) AS popularity
- FROM loc WHERE ($1='' AND served) OR ($1<>'' AND (strpos(replace(lower(name),'ё','е'),$1)>0 OR strpos(replace(lower(address),'ё','е'),$1)>0)))
- SELECT id,type,name,region,timezone,served,CASE WHEN relevance>0 THEN 'match' WHEN connected THEN 'connected' ELSE 'popular' END AS rank_reason,address,latitude,longitude
- FROM ranked ORDER BY relevance DESC,connected DESC,served DESC,popularity DESC,name,id LIMIT $4`
-	out := []Location{}
-	err := r.DB.SelectContext(ctx, &out, query, normal(q), ot, on, limit)
-	return out, err
-}
+
 func (r *Repository) Stops(ctx context.Context, id string) ([]Location, error) {
 	if _, err := r.Location(ctx, id); err != nil {
 		return nil, err
 	}
 	kind, n, _ := ParseID(id)
 	out := []Location{}
-	err := r.DB.SelectContext(ctx, &out, locationSQL+` WHERE type='stop' AND (($1='stop' AND id='stop:'||($2::integer)::text) OR ($1='city' AND id IN (SELECT 'stop:'||id FROM stops WHERE city_id=$2::integer))) ORDER BY name,id`, kind, n)
+	err := r.DB.SelectContext(ctx, &out, locationSQL+` WHERE kind='stop' AND (($1='stop' AND entity_id=$2) OR ($1='city' AND city_id=$2)) ORDER BY name_norm,entity_id LIMIT 50`, kind, n)
 	return out, err
 }
 func (r *Repository) Cities(ctx context.Context) ([]City, error) {
 	out := []City{}
-	err := r.DB.SelectContext(ctx, &out, `SELECT id,name,region,timezone,popularity FROM route_cities ORDER BY name,id`)
+	err := r.DB.SelectContext(ctx, &out, `SELECT id,name,region,coalesce(timezone,'') AS timezone,popularity FROM route_cities ORDER BY name,id LIMIT 100`)
 	return out, err
 }
 func (r *Repository) SaveCity(ctx context.Context, c *City) error {
@@ -93,20 +69,30 @@ func (r *Repository) SaveCity(ctx context.Context, c *City) error {
 		return r.DB.QueryRowxContext(ctx, `INSERT INTO route_cities(name,region,timezone,popularity) VALUES($1,$2,$3,$4) RETURNING id`, c.Name, c.Region, c.Timezone, c.Popularity).Scan(&c.ID)
 	}
 	// Existing mapped city timezone is deliberately immutable: changing it would re-date live schedules.
-	var timezone string
+	var timezone sql.NullString
 	if err := r.DB.GetContext(ctx, &timezone, `SELECT timezone FROM route_cities WHERE id=$1`, c.ID); err == sql.ErrNoRows {
 		return missing()
 	} else if err != nil {
 		return err
 	}
-	if timezone != c.Timezone {
+	if timezone.Valid && timezone.String != c.Timezone {
 		return conflict("timezone_immutable", "Создайте новый город для другого часового пояса")
 	}
-	_, err := r.DB.ExecContext(ctx, `UPDATE route_cities SET name=$1,region=$2,popularity=$3 WHERE id=$4`, c.Name, c.Region, c.Popularity, c.ID)
-	return err
+	result, err := r.DB.ExecContext(ctx, `UPDATE route_cities SET name=$1,region=$2,popularity=$3,timezone=coalesce(timezone,$5) WHERE id=$4 AND (timezone IS NULL OR timezone=$5)`, c.Name, c.Region, c.Popularity, c.ID, c.Timezone)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed == 0 {
+		return conflict("timezone_immutable", "Часовой пояс уже изменён. Обновите карточку")
+	}
+	return nil
 }
 
-const segmentSQL = `SELECT t.id AS trip_id,a.id AS boarding_relation,b.id AS alighting_relation,a.stop_id AS boarding_stop_id,b.stop_id AS alighting_stop_id,
+const segmentSQL = `SELECT t.is_demo,t.id AS trip_id,a.id AS boarding_relation,b.id AS alighting_relation,a.stop_id AS boarding_stop_id,b.stop_id AS alighting_stop_id,
  sa.name AS boarding_name,sb.name AS alighting_name,
  a.departure_time AT TIME ZONE 'UTC' AS departure_time,b.arrival_time AT TIME ZONE 'UTC' AS arrival_time,
  COALESCE(sa.timezone,ca.timezone,'') AS timezone,COALESCE(sb.timezone,cb.timezone,'') AS arrival_timezone,t.status,
@@ -118,6 +104,29 @@ const segmentSQL = `SELECT t.id AS trip_id,a.id AS boarding_relation,b.id AS ali
  WHERE (($1='stop' AND sa.id=$2) OR ($1='city' AND sa.city_id=$2))
  AND (($3='stop' AND sb.id=$4) OR ($3='city' AND sb.city_id=$4))
  AND b.arrival_time>a.departure_time`
+
+// The country-wide distribution is highly skewed: most physical stops have no
+// timetable. Keep stop membership and time bounds before route expansion rather
+// than relying on cross-table correlation estimates to infer this order.
+func datedSegmentSQL() string {
+	const boarding = `WITH boarding AS MATERIALIZED (
+ SELECT a.* FROM stops origin
+ CROSS JOIN LATERAL (SELECT ts.* FROM trip_stops ts WHERE ts.stop_id=origin.id
+ AND ts.departure_time>=($5::timestamptz AT TIME ZONE 'UTC')
+ AND ts.departure_time<($6::timestamptz AT TIME ZONE 'UTC')
+ AND ts.departure_time>($7::timestamptz AT TIME ZONE 'UTC') OFFSET 0) a
+ WHERE ($1='stop' AND origin.id=$2) OR ($1='city' AND origin.city_id=$2)
+ ) `
+	query := strings.Replace(segmentSQL,
+		`FROM trips t JOIN trip_stops a ON a.trip_id=t.id JOIN trip_stops b ON b.trip_id=t.id AND b.stop_order>a.stop_order`,
+		`FROM boarding a
+ CROSS JOIN LATERAL (SELECT trip.* FROM trips trip WHERE trip.id=a.trip_id OFFSET 0) t
+ CROSS JOIN LATERAL (SELECT rel.* FROM trip_stops rel WHERE rel.trip_id=a.trip_id AND rel.stop_order>a.stop_order OFFSET 0) b`, 1)
+	query = strings.Replace(query, `JOIN stops sa ON sa.id=a.stop_id JOIN stops sb ON sb.id=b.stop_id`,
+		`CROSS JOIN LATERAL (SELECT s.* FROM stops s WHERE s.id=a.stop_id OFFSET 0) sa
+ CROSS JOIN LATERAL (SELECT s.* FROM stops s WHERE s.id=b.stop_id OFFSET 0) sb`, 1)
+	return boarding + query
+}
 
 func (r *Repository) OriginTimezone(ctx context.Context, id string) (string, error) {
 	loc, err := r.Location(ctx, id)
@@ -135,7 +144,7 @@ const unambiguousSQL = ` AND 1=(SELECT count(*) FROM trip_stops la JOIN trip_sto
 func (r *Repository) segments(ctx context.Context, q Search, start, end, now time.Time, after *cursor) ([]Segment, error) {
 	ft, fn, _ := ParseID(q.From)
 	tt, tn, _ := ParseID(q.To)
-	query := segmentSQL + unambiguousSQL + ` AND t.status IN ('scheduled','boarding','delayed') AND a.departure_time>=($5::timestamptz AT TIME ZONE 'UTC') AND a.departure_time<($6::timestamptz AT TIME ZONE 'UTC') AND a.departure_time>($7::timestamptz AT TIME ZONE 'UTC')`
+	query := datedSegmentSQL() + unambiguousSQL + ` AND t.status IN ('scheduled','boarding','delayed') AND a.departure_time>=($5::timestamptz AT TIME ZONE 'UTC') AND a.departure_time<($6::timestamptz AT TIME ZONE 'UTC') AND a.departure_time>($7::timestamptz AT TIME ZONE 'UTC')`
 	args := []any{ft, fn, tt, tn, start, end, now}
 	if after != nil {
 		if q.Sort == "price" {

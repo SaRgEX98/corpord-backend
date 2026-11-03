@@ -215,3 +215,25 @@ func TestRecoveryDoesNotLogOAuthQueryCookiesOrPanicValue(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogUsersAndCountsStayBehindAdminACL(t *testing.T) {
+	router, _, _ := authRoutesTestServer()
+	for _, path := range []string{"/api/v1/admin/catalog/users", "/api/v1/admin/catalog-counts", "/api/v1/admin/cities/1"} {
+		for _, tc := range []struct {
+			token  string
+			status int
+		}{{"", 401}, {"user", 403}, {"invalid", 401}} {
+			response := routeRequest(router, http.MethodGet, path, tc.token, "")
+			if response.Code != tc.status {
+				t.Fatalf("%s token %s: %d", path, tc.token, response.Code)
+			}
+		}
+	}
+	// Public catalog must not expose users even to a caller with an admin token.
+	for _, token := range []string{"", "user", "admin"} {
+		response := routeRequest(router, http.MethodGet, "/api/v1/catalog/users", token, "")
+		if response.Code != 404 {
+			t.Fatalf("public users catalog: %d", response.Code)
+		}
+	}
+}

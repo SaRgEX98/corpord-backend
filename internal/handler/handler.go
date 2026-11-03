@@ -70,6 +70,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 	h.r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	// Add global middleware
 	h.r.Use(middleware.RequestLogger(h.logger))
+	h.r.Use(middleware.CollectionLimits())
 	h.r.Use(middleware.CORSMiddleware())
 	// API v1 routes
 	v1 := h.r.Group("api/v1")
@@ -95,6 +96,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		}
 		v1.GET("/geo/suggest", h.routes.GeoSuggest)
 		v1.GET("/locations/suggest", h.routes.Suggest)
+		v1.GET("/catalog/:kind", h.routes.Catalog)
 		v1.GET("/locations/:id/stops", h.routes.Stops)
 		v1.GET("/locations/:id", h.routes.Location)
 		s := v1.Group("/stops")
@@ -134,7 +136,10 @@ func (h *handler) InitRoutes() *gin.Engine {
 			admin := authorized.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(h.logger, model.RoleAdmin))
 			{
+				admin.GET("/catalog/:kind", h.routes.Catalog)
+				admin.GET("/catalog-counts", h.routes.CatalogCounts)
 				admin.GET("/cities", h.routes.Cities)
+				admin.GET("/cities/:id", h.routes.City)
 				admin.POST("/cities", h.routes.SaveCity)
 				admin.PUT("/cities/:id", h.routes.SaveCity)
 				// Add admin routes here

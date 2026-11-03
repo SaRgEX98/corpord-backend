@@ -30,7 +30,7 @@ func NewDriverStatus(logger *logger.Logger, qb *dbx.QueryBuilder) DriverStatus {
 
 func (d *driverStatus) All(ctx context.Context) ([]model.DriverStatus, error) {
 	results := make([]model.DriverStatus, 0)
-	query, args, err := d.qb.Sq.Select("id, name").From(TableDriverStatus).ToSql()
+	query, args, err := d.qb.Sq.Select("id, name").From(TableDriverStatus).Limit(100).ToSql()
 	if err != nil {
 		d.logger.Error(err)
 		return nil, err

@@ -78,6 +78,7 @@ func (r *userRepository) GetAll(ctx context.Context) ([]*model.UserResponse, err
 		From(TableUsers + " u").
 		Join("roles r ON r.id = u.role_id").
 		OrderBy("u.id ASC").
+		Limit(100).
 		ToSql()
 
 	if err != nil {

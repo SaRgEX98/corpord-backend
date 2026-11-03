@@ -39,6 +39,7 @@ func (d *driver) All(ctx context.Context) ([]model.DriverOutput, error) {
 		"ds.name as driver_status").
 		From(TableDriver).
 		Join("driver_status ds ON ds.id = drivers.status").
+		Limit(100).
 		ToSql()
 	if err != nil {
 		d.logger.Error("Failed to build query", err)

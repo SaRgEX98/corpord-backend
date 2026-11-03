@@ -10,6 +10,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,6 +42,8 @@ func routeError(c *gin.Context, err error) {
 	}
 	status, code, message := 500, "internal_error", "Внутренняя ошибка сервера"
 	switch {
+	case errors.Is(err, context.DeadlineExceeded), pg.IsPgError(err, "57014"):
+		status, code, message = 503, "search_timeout", "Поиск занят. Уточните запрос и повторите."
 	case errors.Is(err, sql.ErrNoRows):
 		status, code, message = 404, "not_found", "Запись не найдена"
 	case pg.IsPgError(err, "23505"):
@@ -51,6 +54,29 @@ func routeError(c *gin.Context, err error) {
 		status, code, message = 400, "invalid_request", "Некорректные данные"
 	}
 	c.JSON(status, gin.H{"error": message, "code": code})
+}
+
+func (h *RouteHandler) Catalog(c *gin.Context) {
+	kind := c.Param("kind")
+	// User records are only reachable through the existing admin middleware.
+	if kind == "users" && !strings.Contains(c.FullPath(), "/admin/") {
+		c.JSON(404, gin.H{"error": "Каталог не найден"})
+		return
+	}
+	limit, ok := queryInt(c, "limit", 30)
+	if !ok {
+		return
+	}
+	city, ok := queryInt(c, "city_id", 0)
+	if !ok {
+		return
+	}
+	page, err := h.service.Repo.Catalog(c.Request.Context(), routes.PageQuery{Kind: kind, Q: c.Query("q"), Cursor: c.Query("cursor"), Region: c.Query("region"), CityID: city, Limit: limit, Status: c.Query("status"), Category: c.Query("category")})
+	if err != nil {
+		routeError(c, err)
+		return
+	}
+	c.JSON(200, page)
 }
 func queryInt(c *gin.Context, key string, def int) (int, bool) {
 	v, ok := c.GetQuery(key)
@@ -69,7 +95,7 @@ func (h *RouteHandler) Suggest(c *gin.Context) {
 	if !ok {
 		return
 	}
-	items, err := h.service.Repo.Suggest(c.Request.Context(), c.Query("q"), c.Query("origin_id"), limit)
+	items, err := h.service.Repo.Suggest(c.Request.Context(), c.Query("q"), c.Query("origin_id"), limit, c.Query("region"))
 	if err != nil {
 		routeError(c, err)
 		return
@@ -252,4 +278,33 @@ func (h *RouteHandler) Location(c *gin.Context) {
 		return
 	}
 	c.JSON(200, out)
+}
+
+func (h *RouteHandler) City(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id < 1 {
+		routeError(c, &routes.Error{Status: 400, Code: "invalid_request", Message: "Некорректный ID"})
+		return
+	}
+	var city routes.City
+	err = h.service.Repo.DB.GetContext(c.Request.Context(), &city, `SELECT id,name,region,coalesce(timezone,'') AS timezone,popularity FROM route_cities WHERE id=$1`, id)
+	if err != nil {
+		routeError(c, err)
+		return
+	}
+	c.JSON(200, city)
+}
+
+func (h *RouteHandler) CatalogCounts(c *gin.Context) {
+	// reltuples uses planner statistics: constant work even with millions of trips.
+	// Explicitly approximate; never replace it with nine full collection requests.
+	var payload []byte
+	err := h.service.Repo.DB.GetContext(c.Request.Context(), &payload, `SELECT coalesce(jsonb_object_agg(kind,jsonb_build_object('value',CASE WHEN pc.reltuples<0 THEN NULL ELSE pc.reltuples::bigint END,'approximate',true)),'{}'::jsonb)
+ FROM (VALUES('cities','route_cities'),('stops','stops'),('trips','trips'),('tripStops','trip_stops'),('buses','bus'),('drivers','drivers'),('users','users'),('busCategories','bus_categories'),('busStatuses','bus_statuses'),('driverStatuses','driver_status')) names(kind,relation)
+ JOIN pg_class pc ON pc.oid=to_regclass(relation)`)
+	if err != nil {
+		routeError(c, err)
+		return
+	}
+	c.Data(200, "application/json", payload)
 }

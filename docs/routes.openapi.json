@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Corpord route experience API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Additive specification; legacy API stays in swagger.yaml. Informational prices; no inventory or reservations. See ROUTE_SEARCH_API.md and ADR 0001."
   },
   "servers": [
@@ -40,6 +40,15 @@
               "maximum": 20,
               "default": 8
             }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "Exact region name selected from /catalog/regions; it is a filter, not a route endpoint."
           }
         ],
         "responses": {
@@ -1135,6 +1144,241 @@
           }
         }
       }
+    },
+    "/catalog/{kind}": {
+      "get": {
+        "description": "Bounded ID-ordered keyset page. Trips are summaries; stops are loaded from detail. No per-row queries. Legacy arrays are capped at 100.",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cities",
+                "regions",
+                "stops",
+                "buses",
+                "drivers",
+                "trips",
+                "tripStops",
+                "busCategories",
+                "busStatuses",
+                "driverStatuses"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "city_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "next_cursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query or cursor scope"
+          },
+          "503": {
+            "description": "Search timeout"
+          }
+        }
+      }
+    },
+    "/admin/catalog/{kind}": {
+      "get": {
+        "description": "Admin-only catalog. The users kind never returns password hashes or identities.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "users"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "city_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "next_cursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin role required"
+          }
+        }
+      }
+    },
+    "/admin/catalog-counts": {
+      "get": {
+        "description": "Admin-only, approximate planner row estimates. No full collection scans.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Map of catalog kind to {value,approximate:true}; value nullable before ANALYZE"
+          },
+          "403": {
+            "description": "Admin role required"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1183,6 +1427,10 @@
           "longitude": {
             "type": "number",
             "nullable": true
+          },
+          "city_name": {
+            "type": "string",
+            "description": "Parent settlement name for disambiguating stops."
           }
         },
         "required": [
@@ -1414,6 +1662,10 @@
           },
           "availability": {
             "$ref": "#/components/schemas/Availability"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "description": "Fictional timetable and test fares; no real transport service is asserted."
           }
         },
         "required": [
@@ -1529,6 +1781,9 @@
                 "trip_count"
               ]
             }
+          },
+          "contains_demo": {
+            "type": "boolean"
           }
         },
         "required": [

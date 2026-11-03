@@ -1,0 +1,5 @@
+osmium==4.3.0
+shapely==2.1.2
+psycopg[binary]==3.2.12
+timezonefinder==8.3.0
+timezonefinder-data==1.2026.3

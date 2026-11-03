@@ -52,6 +52,7 @@ type TripShortInfo struct {
 // TripResponse contains separate trip, bus and driver identifiers and stops ordered by stop_order. Stops is [] when empty; end_time can be null.
 // @Description TripResponse contains separate trip, bus and driver identifiers and stops ordered by stop_order. Stops is [] when empty; end_time can be null.
 type TripResponse struct {
+	IsDemo    bool            `json:"is_demo" db:"is_demo"`
 	ID        int             `json:"id" db:"id"`
 	Bus       ViewBus         `json:"bus" db:"bus"`
 	Driver    DriverView      `json:"driver" db:"driver"`

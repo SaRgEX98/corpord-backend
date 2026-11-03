@@ -29,7 +29,7 @@ func NewBusStatus(logger *logger.Logger, qb *dbx.QueryBuilder) BusStatus {
 }
 
 func (b *busStatus) All(ctx context.Context) ([]model.BusStatus, error) {
-	query, args, err := b.qb.Sq.Select("id", "name").From(TableBusStatuses).OrderBy("id").ToSql()
+	query, args, err := b.qb.Sq.Select("id", "name").From(TableBusStatuses).OrderBy("id").Limit(100).ToSql()
 	if err != nil {
 		return nil, err
 	}

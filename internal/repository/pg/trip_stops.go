@@ -38,7 +38,7 @@ func (ts *tripStop) All(ctx context.Context) ([]*model.TripStop, error) {
 		"departure_time",
 		"stop_order",
 		"price_to_next",
-	).From(TableTripStop).ToSql()
+	).From(TableTripStop).Limit(100).ToSql()
 	if err != nil {
 		ts.logger.Error(err)
 		return nil, err

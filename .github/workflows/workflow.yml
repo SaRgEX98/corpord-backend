@@ -59,6 +59,11 @@ jobs:
           /tmp/corpord-geo-tests/bin/pip install -r deploy/geo/pilot/city-boundary-requirements.txt
           PYTHONDONTWRITEBYTECODE=1 /tmp/corpord-geo-tests/bin/python -m unittest discover -s deploy/geo/pilot -p test_city_boundary.py -v
           bash -n deploy/geo/pilot/photon_runtime.sh
+      - name: Catalog import, geometry and timetable guards
+        run: |
+          python -m venv /tmp/corpord-catalog-tests
+          /tmp/corpord-catalog-tests/bin/pip install -r scripts/catalog/requirements.lock.txt
+          PYTHONDONTWRITEBYTECODE=1 /tmp/corpord-catalog-tests/bin/python -m unittest discover -s scripts/catalog -p 'test_*.py' -v
 
   build:
     if: >-
