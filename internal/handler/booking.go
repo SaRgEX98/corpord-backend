@@ -17,7 +17,13 @@ import (
 
 type BookingHandler struct{ service *booking.Service }
 
-func NewBooking(db *sqlx.DB) *BookingHandler { return &BookingHandler{service: booking.New(db)} }
+func NewBooking(db *sqlx.DB, enabled ...bool) *BookingHandler {
+	s := booking.New(db)
+	if len(enabled) > 0 {
+		s.CheckoutEnabled = enabled[0]
+	}
+	return &BookingHandler{service: s}
+}
 func (h *BookingHandler) Register(public, authorized *gin.RouterGroup) {
 	public.GET("/trips/:id/availability", h.Availability)
 	authorized.POST("/me/bookings", h.Create)

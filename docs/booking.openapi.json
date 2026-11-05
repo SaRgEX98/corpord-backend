@@ -1320,7 +1320,9 @@
               "stop_in_use",
               "timezone_conflict",
               "quality_timeout",
-              "quality_busy"
+              "quality_busy",
+              "checkout_in_progress",
+              "paid_order"
             ]
           }
         },
@@ -1391,9 +1393,11 @@
             "enum": [
               "held",
               "cancelled",
-              "expired"
+              "expired",
+              "payment_committing",
+              "confirmed"
             ],
-            "description": "Expired status is effective at database time, even before background cleanup."
+            "description": "Only held expires at database time; payment_committing and confirmed occupy their seat independently of the original hold TTL."
           },
           "seat_number": {
             "type": "integer",
@@ -1427,13 +1431,24 @@
           "expires_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Authoritative expiry: earlier of created_at+600 seconds and departure_time. Idempotent replay never extends it."
+            "description": "Original held expiry: earlier of created_at+600 seconds and departure_time. Replays do not extend it; payment_committing/confirmed do not expire at this deadline."
           },
           "cancelled_at": {
             "type": "string",
             "format": "date-time",
             "description": "Set once for a cancellation of a live hold; null for expired or never-cancelled holds.",
             "nullable": true
+          },
+          "checkout_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true,
+            "description": "Existing checkout link; use checkout API actions rather than hold cancel when present."
+          },
+          "checkout_enabled": {
+            "type": "boolean",
+            "description": "Server capability for sandbox checkout creation. No provider call or per-row query."
           }
         },
         "required": [
@@ -1455,7 +1470,9 @@
           "is_demo",
           "created_at",
           "expires_at",
-          "cancelled_at"
+          "cancelled_at",
+          "checkout_id",
+          "checkout_enabled"
         ],
         "additionalProperties": false
       },

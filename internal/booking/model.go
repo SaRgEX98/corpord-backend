@@ -29,7 +29,7 @@ func invalid() error {
 }
 func missing() error { return &Error{404, "not_found", "Запись не найдена"} }
 func conflict(code string) error {
-	messages := map[string]string{"sold_out": "Свободных мест на участке нет", "hold_limit": "Можно удерживать не более пяти мест", "idempotency_conflict": "Ключ уже использован для другого запроса", "trip_unavailable": "Рейс или участок недоступен", "inventory_unavailable": "Удержание места на этом рейсе недоступно", "ambiguous_segment": "Остановки повторяются: участок неоднозначен"}
+	messages := map[string]string{"sold_out": "Свободных мест на участке нет", "hold_limit": "Можно удерживать не более пяти мест", "idempotency_conflict": "Ключ уже использован для другого запроса", "trip_unavailable": "Рейс или участок недоступен", "inventory_unavailable": "Удержание места на этом рейсе недоступно", "ambiguous_segment": "Остановки повторяются: участок неоднозначен", "checkout_in_progress": "Удержание связано с оплатой. Откройте заказ", "paid_order": "Место закреплено за заказом"}
 	return &Error{409, code, messages[code]}
 }
 
@@ -53,6 +53,8 @@ type Booking struct {
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	ExpiresAt       time.Time  `json:"expires_at" db:"expires_at"`
 	CancelledAt     *time.Time `json:"cancelled_at" db:"cancelled_at"`
+	CheckoutID      *int64     `json:"checkout_id" db:"checkout_id"`
+	CheckoutEnabled bool       `json:"checkout_enabled" db:"-"`
 }
 type Passenger struct {
 	ID        int64     `json:"id" db:"id"`

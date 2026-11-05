@@ -532,8 +532,15 @@ func TestMigrationDownUpAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	parts := strings.Split(string(b), "-- +goose Down")
+	checkoutMigration, err := os.ReadFile("../../db/migrations/20261105000300_checkout.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkoutParts := strings.Split(string(checkoutMigration), "-- +goose Down")
+	mustExec(t, s.DB, checkoutParts[1])
 	mustExec(t, s.DB, parts[1])
 	mustExec(t, s.DB, parts[0])
+	mustExec(t, s.DB, checkoutParts[0])
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, _, err = s.Create(ctx, 1, "cancelled-context", request(1, 1, 3)); err == nil {

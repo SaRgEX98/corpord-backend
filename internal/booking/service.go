@@ -10,11 +10,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Service struct{ DB *sqlx.DB }
+type Service struct {
+	DB              *sqlx.DB
+	CheckoutEnabled bool
+}
 
 func New(db *sqlx.DB) *Service { return &Service{DB: db} }
 
-const bookingColumns = `h.id,h.trip_id,h.boarding_stop_id,h.alighting_stop_id,h.boarding_name,h.alighting_name,h.departure_time,h.arrival_time,h.timezone,h.arrival_timezone,h.passenger_name,CASE WHEN h.status='held' AND h.expires_at<=clock_timestamp() THEN 'expired' ELSE h.status END AS status,h.seat_number,h.amount_minor,h.currency,h.is_demo,h.created_at,h.expires_at,h.cancelled_at`
+const bookingColumns = `h.id,h.trip_id,h.boarding_stop_id,h.alighting_stop_id,h.boarding_name,h.alighting_name,h.departure_time,h.arrival_time,h.timezone,h.arrival_timezone,h.passenger_name,CASE WHEN h.status='held' AND h.expires_at<=clock_timestamp() THEN 'expired' ELSE h.status END AS status,h.seat_number,h.amount_minor,h.currency,h.is_demo,h.created_at,h.expires_at,h.cancelled_at,h.checkout_id`
 const passengerColumns = `id,full_name,created_at,updated_at`
 
 type trip struct {
@@ -127,7 +130,7 @@ func (s *Service) Availability(ctx context.Context, tripID, boarding, alighting 
 	}
 	capacity = min(capacity, t.Capacity)
 	var occupied int
-	err = tx.GetContext(ctx, &occupied, `SELECT count(DISTINCT seat_number) FROM booking_holds WHERE trip_id=$1 AND status='held' AND expires_at>$4 AND occupied_range && int4range($2,$3,'[)')`, tripID, seg.BoardingOrder, seg.AlightingOrder, now)
+	err = tx.GetContext(ctx, &occupied, `SELECT count(DISTINCT seat_number) FROM booking_holds WHERE trip_id=$1 AND (status IN ('payment_committing','confirmed') OR (status='held' AND expires_at>$4)) AND occupied_range && int4range($2,$3,'[)')`, tripID, seg.BoardingOrder, seg.AlightingOrder, now)
 	if err != nil {
 		return out, err
 	}
@@ -172,6 +175,7 @@ func (s *Service) Create(ctx context.Context, owner int, key string, r CreateReq
 		if existing.PayloadHash != hash {
 			return out, false, conflict("idempotency_conflict")
 		}
+		existing.Booking.CheckoutEnabled = s.CheckoutEnabled
 		return existing.Booking, false, tx.Commit()
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -190,7 +194,7 @@ func (s *Service) Create(ctx context.Context, owner int, key string, r CreateReq
 		name = *r.PassengerName
 	}
 	var active int
-	if err = tx.GetContext(ctx, &active, `SELECT count(*) FROM booking_holds WHERE user_id=$1 AND status='held' AND expires_at>clock_timestamp()`, owner); err != nil {
+	if err = tx.GetContext(ctx, &active, `SELECT count(*) FROM booking_holds WHERE user_id=$1 AND (status='payment_committing' OR (status='held' AND expires_at>clock_timestamp()))`, owner); err != nil {
 		return out, false, err
 	}
 	if active >= 5 {
@@ -225,7 +229,7 @@ func (s *Service) Create(ctx context.Context, owner int, key string, r CreateReq
 		return out, false, err
 	}
 	var seat int
-	err = tx.GetContext(ctx, &seat, `SELECT n FROM booking_inventory i CROSS JOIN LATERAL generate_series(1,LEAST(i.capacity,$5)) n WHERE i.trip_id=$1 AND NOT EXISTS (SELECT 1 FROM booking_holds h WHERE h.trip_id=i.trip_id AND h.status='held' AND h.expires_at>$4 AND h.seat_number=n AND h.occupied_range && int4range($2,$3,'[)')) ORDER BY n LIMIT 1`, r.TripID, seg.BoardingOrder, seg.AlightingOrder, now, t.Capacity)
+	err = tx.GetContext(ctx, &seat, `SELECT n FROM booking_inventory i CROSS JOIN LATERAL generate_series(1,LEAST(i.capacity,$5)) n WHERE i.trip_id=$1 AND NOT EXISTS (SELECT 1 FROM booking_holds h WHERE h.trip_id=i.trip_id AND (h.status IN ('payment_committing','confirmed') OR (h.status='held' AND h.expires_at>$4)) AND h.seat_number=n AND h.occupied_range && int4range($2,$3,'[)')) ORDER BY n LIMIT 1`, r.TripID, seg.BoardingOrder, seg.AlightingOrder, now, t.Capacity)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, false, conflict("sold_out")
 	}
@@ -239,6 +243,7 @@ func (s *Service) Create(ctx context.Context, owner int, key string, r CreateReq
 	if err = tx.Commit(); err != nil {
 		return Booking{}, false, err
 	}
+	out.CheckoutEnabled = s.CheckoutEnabled
 	return out, true, nil
 }
 func (s *Service) Get(ctx context.Context, owner int, id int64) (Booking, error) {
@@ -252,6 +257,7 @@ func (s *Service) Get(ctx context.Context, owner int, id int64) (Booking, error)
 	if errors.Is(err, sql.ErrNoRows) {
 		err = missing()
 	}
+	out.CheckoutEnabled = s.CheckoutEnabled
 	return out, err
 }
 func (s *Service) List(ctx context.Context, owner, limit int, cursor string) (Page[Booking], error) {
@@ -277,6 +283,9 @@ func (s *Service) List(ctx context.Context, owner, limit int, cursor string) (Pa
 		out.Items = out.Items[:limit]
 		out.NextCursor = pageCursor(owner, "bookings", out.Items[limit-1].ID)
 	}
+	for i := range out.Items {
+		out.Items[i].CheckoutEnabled = s.CheckoutEnabled
+	}
 	return out, nil
 }
 func (s *Service) Cancel(ctx context.Context, owner int, id int64) (Booking, error) {
@@ -294,6 +303,30 @@ func (s *Service) Cancel(ctx context.Context, owner int, id int64) (Booking, err
 	if err = lockOwner(ctx, tx, owner); err != nil {
 		return out, err
 	}
+	var tripID int
+	if err = tx.GetContext(ctx, &tripID, `SELECT trip_id FROM booking_holds WHERE id=$1 AND user_id=$2`, id, owner); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return out, missing()
+		}
+		return out, err
+	}
+	var tripLock int
+	if err = tx.GetContext(ctx, &tripLock, `SELECT t.id FROM trips t JOIN bus b ON b.id=t.bus_id WHERE t.id=$1 FOR UPDATE OF t FOR SHARE OF b`, tripID); err != nil {
+		return out, err
+	}
+	var guarded struct {
+		Status         string
+		CheckoutStatus *string `db:"checkout_status"`
+	}
+	if err = tx.GetContext(ctx, &guarded, `SELECT h.status,(SELECT status FROM checkout_orders WHERE id=h.checkout_id) checkout_status FROM booking_holds h WHERE h.id=$1 AND h.user_id=$2 FOR UPDATE`, id, owner); err != nil {
+		return out, err
+	}
+	if guarded.Status == "confirmed" {
+		return out, conflict("paid_order")
+	}
+	if guarded.Status == "payment_committing" || (guarded.CheckoutStatus != nil && *guarded.CheckoutStatus != "cancelled" && *guarded.CheckoutStatus != "expired" && *guarded.CheckoutStatus != "refunded") {
+		return out, conflict("checkout_in_progress")
+	}
 	err = tx.GetContext(ctx, &out, `WITH db_now AS MATERIALIZED (SELECT clock_timestamp() AS at) UPDATE booking_holds AS h SET status=CASE WHEN status='held' AND expires_at<=db_now.at THEN 'expired' WHEN status='held' THEN 'cancelled' ELSE status END,cancelled_at=CASE WHEN status='held' AND expires_at>db_now.at THEN db_now.at ELSE cancelled_at END FROM db_now WHERE h.id=$1 AND h.user_id=$2 RETURNING `+bookingColumns, id, owner)
 	if errors.Is(err, sql.ErrNoRows) {
 		return out, missing()
@@ -301,6 +334,7 @@ func (s *Service) Cancel(ctx context.Context, owner int, id int64) (Booking, err
 	if err != nil {
 		return out, err
 	}
+	out.CheckoutEnabled = s.CheckoutEnabled
 	return out, tx.Commit()
 }
 

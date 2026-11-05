@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"corpord-api/internal/booking"
+	"corpord-api/internal/checkout"
 	"corpord-api/internal/config"
 	"corpord-api/internal/database"
 	"corpord-api/internal/handler"
 	"corpord-api/internal/logger"
+	"corpord-api/internal/payments"
 	"corpord-api/internal/repository"
 	"corpord-api/internal/scheduler"
 	"corpord-api/internal/server"
@@ -22,26 +24,38 @@ import (
 )
 
 type App struct {
-	cfg              *config.Config
-	logger           *logger.Logger
-	r                *repository.Repository
-	s                *service.Service
-	h                handler.Handler
-	srv              server.Server
-	ctx              context.Context
-	db               *database.Database
-	t                token.Manager
-	qb               *dbx.QueryBuilder
-	sso              *sso.Registry
-	scheduler        *scheduler.Scheduler
-	bookingScheduler *scheduler.Scheduler
+	cfg               *config.Config
+	logger            *logger.Logger
+	r                 *repository.Repository
+	s                 *service.Service
+	h                 handler.Handler
+	srv               server.Server
+	ctx               context.Context
+	db                *database.Database
+	t                 token.Manager
+	qb                *dbx.QueryBuilder
+	sso               *sso.Registry
+	scheduler         *scheduler.Scheduler
+	bookingScheduler  *scheduler.Scheduler
+	checkoutScheduler *scheduler.Scheduler
 }
 
-func New() *App {
+func New() *App { return newApp(nil, nil) }
+
+// Provider/router injection is used by the build-tagged disposable E2E binary.
+// Production New always supplies nil and cannot enable a fake provider by env.
+func newApp(testProvider payments.Provider, configure func(*gin.Engine)) *App {
 	a := &App{}
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("couldn't load config: %v", err)
+	}
+	if testProvider != nil {
+		if cfg.App.Env != "development" {
+			log.Fatal("test provider requires development environment")
+		}
+		cfg.Payments.Enabled = true
+		cfg.Payments.ReturnOrigin = cfg.FrontendURL
 	}
 	a.cfg = cfg
 
@@ -94,6 +108,15 @@ func New() *App {
 
 	a.logger.Info("initializing service layer")
 	a.s = service.New(a.logger, a.r, a.t, a.sso)
+	var provider payments.Provider = testProvider
+	if cfg.Payments.Enabled && provider == nil {
+		client, e := payments.NewYooKassa(payments.Config{ShopID: cfg.Payments.ShopID, SecretKey: cfg.Payments.SecretKey, Timeout: cfg.Payments.Timeout})
+		if e != nil {
+			log.Fatal("invalid test payment provider configuration")
+		}
+		provider = client
+	}
+	a.s.Checkout = checkout.New(a.db.Postgres.DB(), provider, checkout.Options{Enabled: cfg.Payments.Enabled, ReturnOrigin: cfg.Payments.ReturnOrigin})
 
 	a.logger.Info("initializing handler layer")
 	if a.cfg.App.Env == "production" {
@@ -104,7 +127,11 @@ func New() *App {
 		handler.WithSSOFrontendURL(cfg.FrontendURL))
 
 	a.logger.Info("initializing server")
-	a.srv = server.New(a.h.InitRoutes(), &cfg.HTTP)
+	engine := a.h.InitRoutes()
+	if configure != nil {
+		configure(engine)
+	}
+	a.srv = server.New(engine, &cfg.HTTP)
 
 	a.scheduler = scheduler.New(a.logger, time.Hour)
 
@@ -117,6 +144,9 @@ func New() *App {
 	a.bookingScheduler = scheduler.New(a.logger, time.Minute)
 	a.bookingScheduler.AddTask(scheduler.NewBookingExpiryTask(booking.New(a.db.Postgres.DB())))
 	a.bookingScheduler.Start()
+	a.checkoutScheduler = scheduler.NewWithTaskTimeout(a.logger, 2*time.Second, 10*time.Second)
+	a.checkoutScheduler.AddTask(scheduler.NewCheckoutTask(a.s.Checkout))
+	a.checkoutScheduler.Start()
 
 	a.logger.Info("application initialized successfully")
 	return a
@@ -139,6 +169,9 @@ func (a *App) Stop() {
 		a.bookingScheduler.Stop()
 	}
 
+	if a.checkoutScheduler != nil {
+		a.checkoutScheduler.Stop()
+	}
 	if err := a.srv.Shutdown(ctx); err != nil {
 		a.logger.Errorf("HTTP shutdown: %v", err)
 	}
