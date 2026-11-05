@@ -2,6 +2,7 @@ package handler
 
 import (
 	_ "corpord-api/docs"
+	"corpord-api/internal/checkout"
 	"corpord-api/internal/config"
 	"corpord-api/internal/handler/middleware"
 	"corpord-api/internal/logger"
@@ -29,6 +30,8 @@ type handler struct {
 	routes   *RouteHandler
 	booking  *BookingHandler
 	quality  *CatalogQualityHandler
+	checkout *CheckoutHandler
+	webhook  *PaymentWebhook
 	tripStop TripStop
 	stop     Stop
 	sso      *SSOHandler
@@ -45,6 +48,10 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 	if s.Routes != nil && s.Routes.Repo != nil {
 		routeDB = s.Routes.Repo.DB
 	}
+	checkoutService := s.Checkout
+	if checkoutService == nil {
+		checkoutService = checkout.New(routeDB, nil, checkout.Options{Enabled: false, ReturnOrigin: cfg.FrontendURL})
+	}
 	router := gin.New()
 	router.Use(gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, recovered any) {
 		logger.Error("request panic recovered")
@@ -60,8 +67,10 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		driver:   NewDriver(logger, s.Driver),
 		trip:     NewTrip(logger, s.Trip),
 		routes:   NewRoutes(s.Routes, cfg.Geo),
-		booking:  NewBooking(routeDB),
+		booking:  NewBooking(routeDB, cfg.Payments.Enabled),
 		quality:  NewCatalogQuality(routeDB),
+		checkout: NewCheckout(checkoutService),
+		webhook:  NewPaymentWebhook(checkoutService, cfg.Payments.Enabled),
 		tripStop: NewTripStop(logger, s.TripStop),
 		stop:     NewStop(logger, s.Stop),
 		sso:      NewSSOHandler(logger, s.Auth, sso, t, ssoOptions...),
@@ -87,6 +96,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		// Public routes - no authentication required
 		RegisterAuthRoutes(v1, h.auth)
 		h.sso.RegisterRoutes(v1)
+		h.webhook.Register(v1)
 		bus := v1.Group("/bus")
 		{
 			bus.GET("/", h.bus.GetAllBuses)
@@ -142,6 +152,7 @@ func (h *handler) InitRoutes() *gin.Engine {
 		authorized.Use(middleware.AuthMiddleware(h.logger, h.t, h.auth.service))
 		{
 			h.booking.Register(v1, authorized)
+			h.checkout.Register(v1, authorized)
 			// Example of admin-only route
 			admin := authorized.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(h.logger, model.RoleAdmin))

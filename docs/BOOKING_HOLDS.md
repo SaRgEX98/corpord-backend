@@ -1,7 +1,11 @@
 # Demo seat holds and passenger workspace
 
-Implemented 2026-11-05. This is a ten-minute **hold**, not a paid order, confirmed
-sale or ticket. Legacy `orders` and `payments` are not used. No passport, date of
+Implemented 2026-11-05. The initial ten-minute **hold** can now be linked to a
+sandbox checkout; see [CHECKOUT_PROTOCOL.md](CHECKOUT_PROTOCOL.md). New blocking
+states `payment_committing`/`confirmed` survive the original hold TTL under the
+same seat exclusion. Booking responses add `checkout_id` and `checkout_enabled`;
+legacy cancellation cannot release an in-progress or confirmed checkout.
+Legacy `orders` and `payments` are not used. This is not a real carrier ticket. No passport, date of
 birth or payment data is collected. All new writes require the existing access
 JWT; every owner predicate comes from middleware, independently of cursors.
 
@@ -48,7 +52,9 @@ survives. Existing history prevents physical trip deletion by a foreign key.
 Changing/cancelling a trip requires cancelling/expiring its active holds first;
 there is no automatic payment or notification workflow.
 
-All TTL comparisons use PostgreSQL clocks. Expiry is at most 600 seconds and is
+For `held` rows, all TTL comparisons use PostgreSQL clocks. `payment_committing`
+and `confirmed` are protected independently of TTL; availability counts both and
+cleanup never expires them. Expiry is at most 600 seconds and is
 shortened to departure when it is sooner. Reading a stale `held` row returns its
 effective `expired` status. Availability excludes expired rows even without the
 worker. Create expires stale exclusion entries for its trip before allocation,
@@ -109,6 +115,8 @@ repeated-stop ambiguity, read-only real/demo availability,
 cursor scoping, 1/30/100-row constant query counts and migration down/up. Handler
 tests cover strict inputs, auth identity, overflow and safe error responses.
 
-Retention, real-carrier inventory synchronization, payment confirmation, ticket
-issuance, refunds, notification delivery and document storage are outside this MVP.
+Retention, real-carrier inventory synchronization, live payment, real ticket
+issuance, user partial refunds, notification delivery and document storage remain
+outside this MVP. Sandbox authorization/capture/compensation are documented in
+[CHECKOUT_PROTOCOL.md](CHECKOUT_PROTOCOL.md).
 Hold history currently has no automatic retention policy.

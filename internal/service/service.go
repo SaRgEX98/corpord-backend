@@ -1,6 +1,7 @@
 package service
 
 import (
+	"corpord-api/internal/checkout"
 	"corpord-api/internal/logger"
 	"corpord-api/internal/repository"
 	"corpord-api/internal/routes"
@@ -22,6 +23,7 @@ type Service struct {
 	Trip     Trip
 	TripStop TripStop
 	Stop     Stop
+	Checkout *checkout.Service
 	Routes   *routes.Service
 }
 

@@ -22,6 +22,16 @@ type Config struct {
 	SSO         SSO
 	FrontendURL string
 	Geo         Geo
+	Payments    Payments
+}
+
+type Payments struct {
+	Enabled      bool
+	Mode         string
+	ShopID       string
+	SecretKey    string
+	ReturnOrigin string
+	Timeout      time.Duration
 }
 
 type Geo struct {
@@ -115,6 +125,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
+		Payments:    Payments{Enabled: getBool("PAYMENTS_ENABLED", false), Mode: getEnv("PAYMENTS_MODE", "test"), ShopID: getEnv("YOOKASSA_SHOP_ID", ""), SecretKey: getEnv("YOOKASSA_SECRET_KEY", ""), ReturnOrigin: strings.TrimRight(getEnv("PAYMENTS_RETURN_ORIGIN", getEnv("FRONTEND_URL", "http://localhost:3000")), "/"), Timeout: getDuration("PAYMENTS_TIMEOUT", 10*time.Second)},
 		Geo:         Geo{PhotonBaseURL: getEnv("PHOTON_BASE_URL", ""), Timeout: getDuration("PHOTON_TIMEOUT", 3*time.Second)},
 		FrontendURL: strings.TrimRight(getEnv("FRONTEND_URL", "http://localhost:3000"), "/"),
 		App: App{
@@ -197,6 +208,9 @@ func Load() (*Config, error) {
 
 // Validate fails before serving requests when credentials or runtime limits are invalid.
 func (c *Config) Validate() error {
+	if err := c.Payments.Validate(c.App.Env); err != nil {
+		return err
+	}
 	if c.Geo.PhotonBaseURL != "" {
 		if _, err := geo.NewClient(c.Geo.PhotonBaseURL, c.Geo.Timeout); err != nil {
 			return fmt.Errorf("invalid PHOTON_BASE_URL or PHOTON_TIMEOUT")
@@ -249,7 +263,7 @@ func validHTTPURL(value string) bool {
 }
 
 func validateEnvironment() error {
-	for _, key := range []string{"APP_DEBUG", "LOG_ENABLE_CALLER", "LOG_ENABLE_STACK", "LOG_COMPRESS", "LOG_TO_FILE", "SSO_GOOGLE_ENABLED", "SSO_YANDEX_ENABLED", "COOKIE_SECURE"} {
+	for _, key := range []string{"PAYMENTS_ENABLED", "APP_DEBUG", "LOG_ENABLE_CALLER", "LOG_ENABLE_STACK", "LOG_COMPRESS", "LOG_TO_FILE", "SSO_GOOGLE_ENABLED", "SSO_YANDEX_ENABLED", "COOKIE_SECURE"} {
 		if value, ok := os.LookupEnv(key); ok && value != "" {
 			if _, err := strconv.ParseBool(value); err != nil {
 				return fmt.Errorf("%s must be a boolean", key)
@@ -263,7 +277,7 @@ func validateEnvironment() error {
 			}
 		}
 	}
-	for _, key := range []string{"HTTP_READ_HEADER_TIMEOUT", "HTTP_READ_TIMEOUT", "HTTP_WRITE_TIMEOUT", "HTTP_IDLE_TIMEOUT", "JWT_ACCESS_TTL", "JWT_REFRESH_TTL", "PHOTON_TIMEOUT"} {
+	for _, key := range []string{"HTTP_READ_HEADER_TIMEOUT", "HTTP_READ_TIMEOUT", "HTTP_WRITE_TIMEOUT", "HTTP_IDLE_TIMEOUT", "JWT_ACCESS_TTL", "JWT_REFRESH_TTL", "PHOTON_TIMEOUT", "PAYMENTS_TIMEOUT"} {
 		if value, ok := os.LookupEnv(key); ok && value != "" {
 			if _, err := time.ParseDuration(value); err != nil {
 				return fmt.Errorf("%s must be a duration", key)

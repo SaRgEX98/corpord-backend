@@ -46,6 +46,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Compile disposable checkout E2E harness
+        run: go build -p 2 -tags checkout_e2e -o /tmp/corpord-checkout-e2e ./cmd/checkout-e2e
       - name: Vet
         run: go vet -p 2 ./...
       - name: Tests with race detector and PostgreSQL/Redis integrations

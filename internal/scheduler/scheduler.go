@@ -15,25 +15,33 @@ type Task interface {
 
 // Scheduler управляет периодическим выполнением задач
 type Scheduler struct {
-	logger    *logger.Logger
-	interval  time.Duration
-	tasks     []Task
-	ctx       context.Context
-	cancel    context.CancelFunc
-	startOnce sync.Once
-	stopOnce  sync.Once
-	wg        sync.WaitGroup
+	logger      *logger.Logger
+	interval    time.Duration
+	taskTimeout time.Duration
+	tasks       []Task
+	ctx         context.Context
+	cancel      context.CancelFunc
+	startOnce   sync.Once
+	stopOnce    sync.Once
+	wg          sync.WaitGroup
 }
 
 // New создает новый планировщик с заданным интервалом
 func New(logger *logger.Logger, interval time.Duration) *Scheduler {
+	return NewWithTaskTimeout(logger, interval, interval)
+}
+
+// Poll cadence and execution budget differ for network-backed durable workers.
+// Runs stay serial, and Stop still cancels the currently executing task.
+func NewWithTaskTimeout(logger *logger.Logger, interval, taskTimeout time.Duration) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Scheduler{
-		logger:   logger,
-		interval: interval,
-		tasks:    []Task{},
-		ctx:      ctx,
-		cancel:   cancel,
+		logger:      logger,
+		interval:    interval,
+		taskTimeout: taskTimeout,
+		tasks:       []Task{},
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 }
 
@@ -70,7 +78,7 @@ func (s *Scheduler) Stop() {
 
 // runTasks выполняет все задачи планировщика
 func (s *Scheduler) runTasks() {
-	ctx, cancel := context.WithTimeout(s.ctx, s.interval)
+	ctx, cancel := context.WithTimeout(s.ctx, s.taskTimeout)
 	defer cancel()
 
 	for _, t := range s.tasks {

@@ -1,0 +1,1008 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Corpord sandbox checkout API",
+    "version": "1.0.0",
+    "description": "Additive specification; booking.openapi.json defines holds and saved passengers. Test shop and demo trips only. No live payments, card storage or valid transport tickets. DB timestamps RFC3339 UTC; integer RUB kopecks. Server actions and verified detail state are authoritative; browser return/countdown never proves payment."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Sandbox checkout"
+    }
+  ],
+  "paths": {
+    "/me/checkouts": {
+      "get": {
+        "operationId": "listCheckouts",
+        "tags": [
+          "Sandbox checkout"
+        ],
+        "description": "Read summary snapshots using one bounded SQL page. No provider requests, per-row lookups, confirmation URLs or total COUNT. Cursor is scoped to owner and status; changing filter requires resetting cursor.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "awaiting_payment",
+                "committing",
+                "paid",
+                "cancel_pending",
+                "cancelled",
+                "expired",
+                "review_required",
+                "refund_pending",
+                "refunded"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A bounded summary page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, cursor/filter or malformed bounded JSON; code invalid_request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required; legacy auth envelope may omit code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Payments disabled/provider unavailable or transient service failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCheckout",
+        "tags": [
+          "Sandbox checkout"
+        ],
+        "description": "Create one immutable sandbox checkout intent from a live own demo hold. No external provider call under DB locks. Durable worker prepares capture=false hosted redirect. The same user+key and hold replays without extending TTL; different hold with same key returns409. Unknown transport outcome must replay the same key and hold. Body rejects unknown fields. Amount, passenger and seat are immutable server snapshots. Payments are disabled by default; no live mode.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{8,128}$",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "New durable checkout. URL may still be null while worker prepares payment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutDetail"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Idempotent replay of the same immutable intent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, cursor/filter or malformed bounded JSON; code invalid_request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required; legacy auth envelope may omit code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or foreign record; code not_found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: hold_expired/checkout_exists/idempotency_conflict/checkout_in_progress/paid_order/not_payable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Payments disabled/provider unavailable or transient service failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/checkouts/{id}": {
+      "get": {
+        "operationId": "getCheckout",
+        "tags": [
+          "Sandbox checkout"
+        ],
+        "description": "Read owner-scoped database truth; never calls a provider. A return URL/query is not proof of payment. Terminal states are monotonic; unknown/capture processing is not a decline and cannot release a protected seat by local timer. Use server actions and next_poll_after_ms for bounded active-detail polling.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current summary, safe hosted URL and polling hint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, cursor/filter or malformed bounded JSON; code invalid_request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required; legacy auth envelope may omit code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or foreign record; code not_found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Payments disabled/provider unavailable or transient service failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/checkouts/{id}/cancel": {
+      "post": {
+        "operationId": "cancelCheckout",
+        "tags": [
+          "Sandbox checkout"
+        ],
+        "description": "Persist an idempotent cancellation intent before committing. It excludes future capture and worker resolves pending/authorized provider state. Payment_committing/confirmed seats remain protected. This is not a user refund API; paid orders reject cancellation.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current checkout after durable cancellation intent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, cursor/filter or malformed bounded JSON; code invalid_request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required; legacy auth envelope may omit code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or foreign record; code not_found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: hold_expired/checkout_exists/idempotency_conflict/checkout_in_progress/paid_order/not_payable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Payments disabled/provider unavailable or transient service failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/checkouts/{id}/reconcile": {
+      "post": {
+        "operationId": "reconcileCheckout",
+        "tags": [
+          "Sandbox checkout"
+        ],
+        "description": "Rate-limited durable reconciliation request; deduplicates queued work. Does not create a new payment or execute provider calls in the request. Owner predicates apply. Use GET later to read verified state.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Verification work durably queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, cursor/filter or malformed bounded JSON; code invalid_request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required; legacy auth envelope may omit code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or foreign record; code not_found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: hold_expired/checkout_exists/idempotency_conflict/checkout_in_progress/paid_order/not_payable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Reconciliation cooldown; code rate_limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Payments disabled/provider unavailable or transient service failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/yookassa/webhook": {
+      "post": {
+        "operationId": "receiveYooKassaWebhook",
+        "tags": [
+          "Sandbox checkout"
+        ],
+        "description": "No user JWT. Body max65536 bytes; only type/event/object.id are retained, other provider fields are ignored and never logged/persisted. Accepted events receive200 only after inbox commit; provider facts are independently verified by worker GET before applying any money/seat transition. Duplicate/stale delivery is safe. Unknown valid event returns ignored200. Rate limit120 requests/minute per process. No successful payment is inferred from this untrusted payload.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Durable inbox accepted or unsupported event ignored; not proof of payment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAck"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed/oversized/multiple JSON, wrong notification type or invalid object ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "60 seconds."
+              }
+            }
+          },
+          "503": {
+            "description": "payments_disabled or inbox_unavailable/inbox_timeout; notification not acknowledged as accepted. Retry delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "CheckoutActions": {
+        "type": "object",
+        "properties": {
+          "can_pay": {
+            "type": "boolean"
+          },
+          "can_cancel": {
+            "type": "boolean"
+          },
+          "can_reconcile": {
+            "type": "boolean"
+          },
+          "can_view_confirmation": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "can_pay",
+          "can_cancel",
+          "can_reconcile",
+          "can_view_confirmation"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "hold_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "trip_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "awaiting_payment",
+              "committing",
+              "paid",
+              "cancel_pending",
+              "cancelled",
+              "expired",
+              "review_required",
+              "refund_pending",
+              "refunded"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "pending",
+              "authorized",
+              "processing",
+              "succeeded",
+              "canceled",
+              "unknown",
+              "refunding",
+              "refunded"
+            ]
+          },
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 100,
+            "maximum": 35000000,
+            "description": "Immutable server-calculated RUB kopecks; no client-supplied price."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "RUB"
+            ]
+          },
+          "is_demo": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "test": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "passenger_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "boarding_name": {
+            "type": "string"
+          },
+          "alighting_name": {
+            "type": "string"
+          },
+          "departure_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "arrival_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA boarding timezone snapshot."
+          },
+          "arrival_timezone": {
+            "type": "string",
+            "description": "IANA arrival timezone snapshot."
+          },
+          "seat_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "hold_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Original held deadline. It does not expire payment_committing/confirmed seat allocations or prove a payment outcome."
+          },
+          "actions": {
+            "$ref": "#/components/schemas/CheckoutActions"
+          }
+        },
+        "required": [
+          "id",
+          "hold_id",
+          "trip_id",
+          "status",
+          "payment_status",
+          "amount_minor",
+          "currency",
+          "is_demo",
+          "test",
+          "passenger_name",
+          "boarding_name",
+          "alighting_name",
+          "departure_time",
+          "arrival_time",
+          "timezone",
+          "arrival_timezone",
+          "seat_number",
+          "created_at",
+          "updated_at",
+          "hold_expires_at",
+          "actions"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "hold_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "trip_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "awaiting_payment",
+              "committing",
+              "paid",
+              "cancel_pending",
+              "cancelled",
+              "expired",
+              "review_required",
+              "refund_pending",
+              "refunded"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "pending",
+              "authorized",
+              "processing",
+              "succeeded",
+              "canceled",
+              "unknown",
+              "refunding",
+              "refunded"
+            ]
+          },
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 100,
+            "maximum": 35000000,
+            "description": "Immutable server-calculated RUB kopecks; no client-supplied price."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "RUB"
+            ]
+          },
+          "is_demo": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "test": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "passenger_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "boarding_name": {
+            "type": "string"
+          },
+          "alighting_name": {
+            "type": "string"
+          },
+          "departure_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "arrival_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA boarding timezone snapshot."
+          },
+          "arrival_timezone": {
+            "type": "string",
+            "description": "IANA arrival timezone snapshot."
+          },
+          "seat_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "hold_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Original held deadline. It does not expire payment_committing/confirmed seat allocations or prove a payment outcome."
+          },
+          "actions": {
+            "$ref": "#/components/schemas/CheckoutActions"
+          },
+          "payment": {
+            "type": "object",
+            "properties": {
+              "confirmation_url": {
+                "type": "string",
+                "nullable": true,
+                "format": "uri",
+                "maxLength": 4096,
+                "description": "Verified server-supplied HTTPS hosted redirect, only when can_view_confirmation. Never persisted in client storage or accepted from a return query."
+              }
+            },
+            "required": [
+              "confirmation_url"
+            ],
+            "additionalProperties": false
+          },
+          "next_poll_after_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Advisory server interval; 0 disables automatic polling. GET reads DB only; it does not create/reconcile payments. Client bounds/backoffs polling and stops for terminal/hidden/unmount/logout."
+          }
+        },
+        "required": [
+          "id",
+          "hold_id",
+          "trip_id",
+          "status",
+          "payment_status",
+          "amount_minor",
+          "currency",
+          "is_demo",
+          "test",
+          "passenger_name",
+          "boarding_name",
+          "alighting_name",
+          "departure_time",
+          "arrival_time",
+          "timezone",
+          "arrival_timezone",
+          "seat_number",
+          "created_at",
+          "updated_at",
+          "hold_expires_at",
+          "actions",
+          "payment",
+          "next_poll_after_ms"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutSummary"
+            },
+            "maxItems": 100
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque owner+status-scoped keyset cursor; null at end."
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutInput": {
+        "type": "object",
+        "properties": {
+          "hold_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "hold_id"
+        ],
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable module code when available. Auth middleware may retain its legacy envelope without code."
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "WebhookInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "notification"
+            ]
+          },
+          "event": {
+            "type": "string",
+            "description": "payment.waiting_for_capture/payment.succeeded/payment.canceled/refund.succeeded are accepted; unsupported events return ignored200."
+          },
+          "object": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{8,128}$",
+                "minLength": 8,
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "type",
+          "event",
+          "object"
+        ],
+        "additionalProperties": true
+      },
+      "WebhookAck": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "ignored"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "ReconcileAccepted": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
-# Предлагаемый контракт checkout v1
+# Контракт checkout v1
 
-**Draft, не реализован.** Root сначала закрепляет DTO/state machine, после этого
-backend/frontend агенты работают по одному контракту. Base `/api/v1`, auth как в
+Контракт реализован в feature branches. Точные решения и Go port закреплены
+в разделе Implementation contract frozen ниже; исходный scope сохранён. Base `/api/v1`, auth как в
 существующем API. IDs/ownership из middleware, RFC3339 UTC, integer minor RUB,
 проверенные денежные диапазоны без float и потери JS safe integer.
 
@@ -63,3 +63,45 @@ YOOKASSA_SECRET_KEY только server, PAYMENTS_RETURN_ORIGIN. Настоящ�
 not_payable. Диапазон суммы сверить по актуальному API. Сохранение имени пассажира
 не означает согласие на хранение платёжного метода. Чек/налоги/live ticketing
 требуют отдельного продуктового решения; не выдумывать реквизиты продавца.
+
+## Implementation contract frozen 2026-11-05
+
+User authorized implementation and delegation. Baselines pulled: backend dev e053337,
+frontend dev8310ed7. Branches feat/yookassa-checkout / feat/passenger-checkout.
+The draft above is now the implementation contract, with these concrete choices:
+
+- Physical seat ledger is existing booking_holds. Extend states with
+  payment_committing/confirmed, exclusion WHERE status IN ('held','payment_committing',
+  'confirmed'). Held uses original TTL; other two occupy regardless of TTL.
+  Update ALL availability/allocation/expiry/cancel/guards and down safety.
+- Public Booking.status union gains payment_committing/confirmed; add nullable
+  checkout_id and checkout_enabled:boolean so hold UI links to existing checkout,
+  starts a new one only when enabled. Compute fields without per-row queries.
+  New schema is mandatory even when disabled; update booking integration fixtures
+  to apply the new migration. booking.Service.CheckoutEnabled bool and variadic
+  NewBooking(db, enabled ...bool) let root pass capability while old callers compile.
+- Checkout.status/payloads exactly draft above. Summary plus detail.payment and
+  next_poll_after_ms. Actions names exactly as proposed. Detail adds no raw provider ID.
+  Normalize payment_status to declared enum. Status filter enum optional, cursor scoped.
+- Existing hold cancel rejects any nonterminal checkout (checkout_in_progress),
+  committing/confirmed always protected; checkout cancel performs durable cancel intent.
+  DB expiry can expire held rows, checkout worker reconciles lost/late authorization.
+- All mutations accept captured sessionVersion in client. POST reconcile deduplicates
+  queued work; bounded per-order cooldown returns429, never creates a new payment.
+- Server port is now exact source internal/payments/port.go (root owns this file).
+  Provider adapter owner implements NewYooKassa(Config) (*YooKassa,error), Config
+  {ShopID string, SecretKey string, Timeout time.Duration}; TestOnly always enforced.
+- Webhook intake persistence belongs checkout service; root handler receives
+  type/event/object.id only (bounded body) and delegates IngestWebhook(ctx,event,id).
+  Provider agent owns adapter only; root owns notification handler/router.
+- Checkout schema owner exports New(*sqlx.DB, payments.Provider, Options) *Service,
+  Options {Enabled bool, ReturnOrigin string}; handler registration via
+  NewCheckout(service).Register(public,authorized). Service Worker(ctx,limit) error
+  processes durable intents; IngestWebhook(ctx,event,id) error acknowledges only
+  after durable commit. Send root exact signatures early if implementation needs
+  adjustment; don't independently change frozen DTO/port.
+- All new schema migrations owned checkout agent. No real env/keys/main DB writes.
+
+Provider mutation argument order is **key first**: Capture(ctx,key,paymentID,amount),
+CancelAuthorization(ctx,key,paymentID), CreateAuthorization(ctx,key,request),
+CreateRefund(ctx,key,request). Named args in port.go are authoritative.
