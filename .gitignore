@@ -30,6 +30,7 @@ go.work.sum
 *.yaml
 !example.yaml
 !swagger.yaml
+!tools/project-index/project-code-index/agents/openai.yaml
 
 # log file
 *.log

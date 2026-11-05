@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func domainID(c *gin.Context) (int, bool) {
@@ -24,6 +25,11 @@ func domainID(c *gin.Context) (int, bool) {
 
 // writeDomainError exposes a stable API error and keeps SQL/driver errors private.
 func writeDomainError(c *gin.Context, err error) {
+	var constraint *pgconn.PgError
+	if errors.As(err, &constraint) && constraint.Code == "23514" && (constraint.Message == "booking_trip_locked" || constraint.Message == "booking_bus_locked") {
+		c.JSON(http.StatusConflict, gin.H{"error": "Есть активные удержания мест. Дождитесь их истечения или отмены", "code": "booking_in_use"})
+		return
+	}
 	status, message := http.StatusInternalServerError, apperrors.ErrInternal.Message
 	var validation *model.ValidationError
 	switch {

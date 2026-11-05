@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -49,5 +50,35 @@ func TestCORSOrigins(t *testing.T) {
 				t.Fatal("missing Vary")
 			}
 		})
+	}
+}
+
+func TestBookingPreflight(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("ALLOWED_ORIGINS", "https://app.example.org")
+	r := gin.New()
+	r.Use(CORSMiddleware())
+	r.POST("/me/bookings", func(c *gin.Context) { t.Fatal("preflight reached booking handler") })
+	req := httptest.NewRequest("OPTIONS", "/me/bookings", nil)
+	req.Header.Set("Origin", "https://app.example.org")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type,idempotency-key")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 204 {
+		t.Fatalf("preflight status %d", w.Code)
+	}
+	allowed := make(map[string]bool)
+	for _, header := range strings.Split(w.Header().Get("Access-Control-Allow-Headers"), ",") {
+		allowed[strings.ToLower(strings.TrimSpace(header))] = true
+	}
+	for _, header := range []string{"authorization", "content-type", "idempotency-key"} {
+		if !allowed[header] {
+			t.Errorf("booking preflight rejects %s", header)
+		}
+	}
+	if !strings.Contains(w.Header().Get("Access-Control-Allow-Methods"), "POST") {
+		t.Fatal("booking POST is not allowed")
 	}
 }

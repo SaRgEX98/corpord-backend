@@ -1,0 +1,1900 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Corpord demo booking and catalogue quality API",
+    "version": "1.0.0",
+    "description": "Additive specification. Legacy API remains in swagger.yaml; route/catalog search remains in routes.openapi.json. This MVP holds demo seats, stores saved names and audits explicit stop mappings. It does not sell tickets, process payments or infer real carrier inventory. All timestamps are RFC3339 UTC; money is integer RUB kopecks."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Passenger workspace"
+    },
+    {
+      "name": "Catalogue quality",
+      "description": "Administrator role required."
+    }
+  ],
+  "paths": {
+    "/trips/{id}/availability": {
+      "get": {
+        "operationId": "tripAvailability",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Read advisory section availability",
+        "description": "Read-only; does not create inventory. Demo trips use min(lazy capacity snapshot, current bus capacity). Real trips return unknown/null/bookable=false. Sold-out demo trips return seats=0 and bookable=false. Repeated stop pairs return409 ambiguous_segment. Availability is advisory; create rechecks under locks.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "boarding_stop_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "alighting_stop_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Availability"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested operation conflicts with current state; inspect code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/me/bookings": {
+      "post": {
+        "operationId": "createBookingHold",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Hold one demo seat on a section",
+        "description": "One automatically chosen seat, maximum five active holds per owner across trips. Overlapping sections cannot reuse a seat; adjacent sections can. Expiry is at most600 seconds, capped at departure; trust expires_at. No sale/payment/ticket. Saved passenger ownership and fare are checked transactionally. Repeated-stop ambiguity returns409 ambiguous_segment. Other409 codes: sold_out, hold_limit, idempotency_conflict, trip_unavailable, inventory_unavailable. Replay returns200, including expired/cancelled snapshots, and never renews TTL.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]{8,128}$"
+            },
+            "description": "Unique per authenticated owner. Preserve the key and exact validated payload for safe retries; a new attempt needs a new key."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested operation conflicts with current state; inspect code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Idempotent replay of the original hold; original expires_at preserved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listBookingHolds",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "List own hold history",
+        "description": "Newest IDs first, default30/max100, keyset pagination, one bounded SQL. Returns immutable names/fare/time snapshots and effective expiry status; no total count or per-row requests.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Opaque cursor from the previous page. Owner/resource scoped for personal lists, normalized-query scoped for the admin queue."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/me/bookings/{id}": {
+      "get": {
+        "operationId": "getBookingHold",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Read an own hold snapshot",
+        "description": "Foreign and missing IDs both return404. Internal owner/idempotency/hash fields are never exposed.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/me/bookings/{id}/cancel": {
+      "post": {
+        "operationId": "cancelBookingHold",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Cancel an own active hold",
+        "description": "Idempotent. A live hold becomes cancelled with a stable cancelled_at; an expired hold remains expired without a synthetic cancellation timestamp. Replays preserve status/timestamps.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/me/passengers": {
+      "get": {
+        "operationId": "listSavedPassengers",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "List own saved passenger names",
+        "description": "Newest IDs first, keyset pagination, default30/max100. Names only; no document, birth date or payment data.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Opaque cursor from the previous page. Owner/resource scoped for personal lists, normalized-query scoped for the admin queue."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassengerPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createSavedPassenger",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Save a passenger name",
+        "description": "Name is trimmed then validated. Request body is bounded4096 bytes and rejects unknown fields and trailing JSON.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Passenger"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassengerRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/passengers/{id}": {
+      "put": {
+        "operationId": "updateSavedPassenger",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Update an own saved name",
+        "description": "Foreign/missing IDs return404. Existing hold name snapshots are preserved.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Passenger"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassengerRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSavedPassenger",
+        "tags": [
+          "Passenger workspace"
+        ],
+        "summary": "Delete an own saved name",
+        "description": "Foreign/missing IDs return404. Hold history and its passenger-name snapshot survive deletion.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/catalog-quality/summary": {
+      "get": {
+        "operationId": "catalogQualitySummary",
+        "tags": [
+          "Catalogue quality"
+        ],
+        "summary": "Count unmapped and schedule-protected stops",
+        "description": "Administrator role required. Exact aggregate bounded by a3-second context; no all-row payload. The cost grows with queue size. Protected stops have trip_stops references.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualitySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator role is required. Existing authorization middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/catalog-quality/stops": {
+      "get": {
+        "operationId": "catalogQualityQueue",
+        "tags": [
+          "Catalogue quality"
+        ],
+        "summary": "List unmapped stops for explicit review",
+        "description": "Administrator role required. Only city_id=null, ascending ID keysets; cursor is bound to normalized q. Default30/max100 and one SQL per page. has_trips indicates protection; cities are selected separately with existing /catalog/cities.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "description": "Literal contains search over the indexed stop document; normalized whitespace/lowercase/ё. Percent/underscore are escaped, not wildcards."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "description": "Opaque cursor from the previous page. Owner/resource scoped for personal lists, normalized-query scoped for the admin queue."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityStopPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator role is required. Existing authorization middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/catalog-quality/stops/{id}/mapping": {
+      "post": {
+        "operationId": "mapStopCity",
+        "tags": [
+          "Catalogue quality"
+        ],
+        "summary": "Explicitly map a stop to a selected city",
+        "description": "Administrator role required. Transaction locks city before stop, checks optimistic version and schedule references, validates explicit timezone, then appends actor/before/after audit. No nearest-city inference, no source_snapshot overwrite.409 stale_version/stop_in_use/timezone_conflict;503 quality_timeout or quality_busy. Response contains the new version.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityStop"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator role is required. Existing authorization middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested operation conflicts with current state; inspect code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MappingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/catalog-quality/stops/{id}/history": {
+      "get": {
+        "operationId": "stopMappingHistory",
+        "tags": [
+          "Catalogue quality"
+        ],
+        "summary": "Read a bounded stop mapping audit",
+        "description": "Administrator role required. Newest events first, default20/max100. No pagination cursor. An existing stop without events returns an empty items array. Actor ID only; no account names/emails/secrets. Before/after timezone is explicit stops.timezone.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingAuditPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters, cursor or JSON body (invalid_request / invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A valid access JWT is required. Existing authentication middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator role is required. Existing authorization middleware may omit the code field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record does not exist or belongs to another user (not_found).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected private database/application failure (internal_error).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database deadline or retryable contention. Retry safely with the same idempotency key when applicable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable module error code. Legacy auth/role/query middleware may omit this property.",
+            "enum": [
+              "invalid_request",
+              "invalid_cursor",
+              "not_found",
+              "sold_out",
+              "hold_limit",
+              "idempotency_conflict",
+              "trip_unavailable",
+              "inventory_unavailable",
+              "ambiguous_segment",
+              "booking_timeout",
+              "unauthorized",
+              "forbidden",
+              "internal_error",
+              "stale_version",
+              "stop_in_use",
+              "timezone_conflict",
+              "quality_timeout",
+              "quality_busy"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "Booking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "trip_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "boarding_stop_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "alighting_stop_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "boarding_name": {
+            "type": "string"
+          },
+          "alighting_name": {
+            "type": "string"
+          },
+          "departure_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "arrival_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA boarding timezone snapshot."
+          },
+          "arrival_timezone": {
+            "type": "string",
+            "description": "IANA arrival timezone snapshot."
+          },
+          "passenger_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]+$",
+            "description": "Trimmed Unicode name. Server trims before validating 1–160 characters and rejects control characters."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "cancelled",
+              "expired"
+            ],
+            "description": "Expired status is effective at database time, even before background cleanup."
+          },
+          "seat_number": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Server-calculated immutable section fare in RUB kopecks."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "RUB"
+            ]
+          },
+          "is_demo": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Authoritative expiry: earlier of created_at+600 seconds and departure_time. Idempotent replay never extends it."
+          },
+          "cancelled_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Set once for a cancellation of a live hold; null for expired or never-cancelled holds.",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "trip_id",
+          "boarding_stop_id",
+          "alighting_stop_id",
+          "boarding_name",
+          "alighting_name",
+          "departure_time",
+          "arrival_time",
+          "timezone",
+          "arrival_timezone",
+          "passenger_name",
+          "status",
+          "seat_number",
+          "amount_minor",
+          "currency",
+          "is_demo",
+          "created_at",
+          "expires_at",
+          "cancelled_at"
+        ],
+        "additionalProperties": false
+      },
+      "BookingPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque keyset position; null when there is no next page."
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "Passenger": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]+$",
+            "description": "Trimmed Unicode name. Server trims before validating 1–160 characters and rejects control characters."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false
+      },
+      "PassengerPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Passenger"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque keyset position; null when there is no next page."
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "PassengerRequest": {
+        "type": "object",
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]+$",
+            "description": "Trimmed Unicode name. Server trims before validating 1–160 characters and rejects control characters."
+          }
+        },
+        "required": [
+          "full_name"
+        ],
+        "additionalProperties": false
+      },
+      "CreateBookingRequest": {
+        "type": "object",
+        "properties": {
+          "trip_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "boarding_stop_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "alighting_stop_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "passenger_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "passenger_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]+$",
+            "description": "Trimmed Unicode name. Server trims before validating 1–160 characters and rejects control characters."
+          }
+        },
+        "required": [
+          "trip_id",
+          "boarding_stop_id",
+          "alighting_stop_id"
+        ],
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "passenger_id"
+            ],
+            "not": {
+              "required": [
+                "passenger_name"
+              ]
+            }
+          },
+          {
+            "required": [
+              "passenger_name"
+            ],
+            "not": {
+              "required": [
+                "passenger_id"
+              ]
+            }
+          }
+        ],
+        "description": "Exactly one saved-passenger ID owned by the caller or a passenger name. One seat/person only. No client price, seat_number, quantity or owner fields."
+      },
+      "Availability": {
+        "type": "object",
+        "properties": {
+          "trip_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "boarding_stop_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "alighting_stop_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "is_demo": {
+            "type": "boolean"
+          },
+          "bookable": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "sold_out",
+              "unknown"
+            ]
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "hold_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              600
+            ],
+            "description": "Maximum hold duration; actual expires_at is capped at departure. This field is not a guarantee of 600 remaining seconds."
+          }
+        },
+        "required": [
+          "trip_id",
+          "boarding_stop_id",
+          "alighting_stop_id",
+          "is_demo",
+          "bookable",
+          "status",
+          "seats",
+          "hold_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "QualitySummary": {
+        "type": "object",
+        "properties": {
+          "unmapped_stops": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "protected_unmapped_stops": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "unmapped_stops",
+          "protected_unmapped_stops"
+        ],
+        "additionalProperties": false
+      },
+      "QualityStop": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "city_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "nullable": true,
+            "description": "Effective stop/city timezone; null if unknown."
+          },
+          "city_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Opaque decimal optimistic version; preserve it exactly, do not convert it to a floating-point number."
+          },
+          "has_trips": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "latitude",
+          "longitude",
+          "city_id",
+          "timezone",
+          "city_name",
+          "region",
+          "version",
+          "has_trips"
+        ],
+        "additionalProperties": false
+      },
+      "QualityStopPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QualityStop"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque keyset position; null when there is no next page."
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "MappingRequest": {
+        "type": "object",
+        "properties": {
+          "city_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Opaque decimal optimistic version; preserve it exactly, do not convert it to a floating-point number."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F]+$",
+            "description": "Trimmed explicit mapping reason, 5–500 Unicode characters; controls rejected."
+          }
+        },
+        "required": [
+          "city_id",
+          "version",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "MappingSnapshot": {
+        "type": "object",
+        "properties": {
+          "city_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "timezone": {
+            "type": "string",
+            "nullable": true,
+            "description": "Explicit stops.timezone, not the inherited effective city timezone."
+          }
+        },
+        "required": [
+          "city_id",
+          "timezone"
+        ],
+        "additionalProperties": false
+      },
+      "MappingAudit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "actor_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "before": {
+            "$ref": "#/components/schemas/MappingSnapshot"
+          },
+          "after": {
+            "$ref": "#/components/schemas/MappingSnapshot"
+          }
+        },
+        "required": [
+          "id",
+          "actor_id",
+          "created_at",
+          "reason",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false
+      },
+      "MappingAuditPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/MappingAudit"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}
