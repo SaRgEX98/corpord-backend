@@ -59,7 +59,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			}
 			c.Header("Access-Control-Allow-Origin", raw)
 			c.Header("Access-Control-Allow-Credentials", "true")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, Idempotency-Key")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		}
 		if c.Request.Method == http.MethodOptions {

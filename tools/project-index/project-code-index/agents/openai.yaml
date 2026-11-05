@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Code Index"
+  short_description: "Find relevant project files with bounded context"
+  default_prompt: "Use $project-code-index to locate the files and symbols needed for this task before reading source."

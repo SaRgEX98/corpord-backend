@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"corpord-api/internal/booking"
 	"corpord-api/internal/config"
 	"corpord-api/internal/database"
 	"corpord-api/internal/handler"
@@ -21,18 +22,19 @@ import (
 )
 
 type App struct {
-	cfg       *config.Config
-	logger    *logger.Logger
-	r         *repository.Repository
-	s         *service.Service
-	h         handler.Handler
-	srv       server.Server
-	ctx       context.Context
-	db        *database.Database
-	t         token.Manager
-	qb        *dbx.QueryBuilder
-	sso       *sso.Registry
-	scheduler *scheduler.Scheduler
+	cfg              *config.Config
+	logger           *logger.Logger
+	r                *repository.Repository
+	s                *service.Service
+	h                handler.Handler
+	srv              server.Server
+	ctx              context.Context
+	db               *database.Database
+	t                token.Manager
+	qb               *dbx.QueryBuilder
+	sso              *sso.Registry
+	scheduler        *scheduler.Scheduler
+	bookingScheduler *scheduler.Scheduler
 }
 
 func New() *App {
@@ -112,6 +114,9 @@ func New() *App {
 
 	// Запускаем планировщик
 	a.scheduler.Start()
+	a.bookingScheduler = scheduler.New(a.logger, time.Minute)
+	a.bookingScheduler.AddTask(scheduler.NewBookingExpiryTask(booking.New(a.db.Postgres.DB())))
+	a.bookingScheduler.Start()
 
 	a.logger.Info("application initialized successfully")
 	return a
@@ -129,6 +134,9 @@ func (a *App) Stop() {
 
 	if a.scheduler != nil {
 		a.scheduler.Stop()
+	}
+	if a.bookingScheduler != nil {
+		a.bookingScheduler.Stop()
 	}
 
 	if err := a.srv.Shutdown(ctx); err != nil {

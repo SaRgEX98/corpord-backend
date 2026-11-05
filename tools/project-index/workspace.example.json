@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cache": ".agents/cache/project-index.sqlite3",
+  "repos": [
+    {"name": "backend", "path": "corpord-backend-dev", "git": true},
+    {"name": "frontend", "path": "corpord-frontend", "git": true},
+    {"name": "infra", "path": "corpord-infra", "git": false, "include": ["*.md", "*.yaml", "geo-dev/*.conf"]},
+    {"name": "workspace", "path": ".", "git": false, "include": ["AGENTS.md", "PROJECT_CONTEXT.md", ".agents/project-index.json"]}
+  ]
+}

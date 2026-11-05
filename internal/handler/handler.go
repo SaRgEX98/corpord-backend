@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
 )
@@ -26,6 +27,8 @@ type handler struct {
 	driver   *Driver
 	trip     *Trip
 	routes   *RouteHandler
+	booking  *BookingHandler
+	quality  *CatalogQualityHandler
 	tripStop TripStop
 	stop     Stop
 	sso      *SSOHandler
@@ -38,6 +41,10 @@ type handler struct {
 
 // New creates a new handler instance with all dependencies
 func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.Manager, sso *sso.Registry, ssoOptions ...SSOOption) Handler {
+	var routeDB *sqlx.DB
+	if s.Routes != nil && s.Routes.Repo != nil {
+		routeDB = s.Routes.Repo.DB
+	}
 	router := gin.New()
 	router.Use(gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, recovered any) {
 		logger.Error("request panic recovered")
@@ -53,6 +60,8 @@ func New(logger *logger.Logger, s *service.Service, cfg *config.Config, t token.
 		driver:   NewDriver(logger, s.Driver),
 		trip:     NewTrip(logger, s.Trip),
 		routes:   NewRoutes(s.Routes, cfg.Geo),
+		booking:  NewBooking(routeDB),
+		quality:  NewCatalogQuality(routeDB),
 		tripStop: NewTripStop(logger, s.TripStop),
 		stop:     NewStop(logger, s.Stop),
 		sso:      NewSSOHandler(logger, s.Auth, sso, t, ssoOptions...),
@@ -132,10 +141,12 @@ func (h *handler) InitRoutes() *gin.Engine {
 		authorized := v1.Group("")
 		authorized.Use(middleware.AuthMiddleware(h.logger, h.t, h.auth.service))
 		{
+			h.booking.Register(v1, authorized)
 			// Example of admin-only route
 			admin := authorized.Group("/admin")
 			admin.Use(middleware.RoleMiddleware(h.logger, model.RoleAdmin))
 			{
+				h.quality.Register(admin)
 				admin.GET("/catalog/:kind", h.routes.Catalog)
 				admin.GET("/catalog-counts", h.routes.CatalogCounts)
 				admin.GET("/cities", h.routes.Cities)

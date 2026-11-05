@@ -49,10 +49,14 @@ jobs:
       - name: Vet
         run: go vet -p 2 ./...
       - name: Tests with race detector and PostgreSQL/Redis integrations
-        run: go test -p 2 -race -count=1 ./...
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public; CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public; CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;'
+          go test -p 2 -race -count=1 ./...
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+      - name: Code index behavior, exclusions and output budgets
+        run: PYTHONDONTWRITEBYTECODE=1 python tools/project-index/project-code-index/scripts/test_code_index.py
       - name: Offline geometry guards and pilot script syntax
         run: |
           python -m venv /tmp/corpord-geo-tests
